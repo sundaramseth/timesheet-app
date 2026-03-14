@@ -5,12 +5,14 @@ import Topbar from "../component/Topbar";
 export default function EmployeeDashboard(){
 
 const user = JSON.parse(localStorage.getItem("user"));
-const RATE = 12;
+const RATE = user?.rate || 0;
 
 const [attendance,setAttendance] = useState([]);
 const [weekDates,setWeekDates] = useState([]);
 const [breaks,setBreaks] = useState({});
 const [manualTimes,setManualTimes] = useState({});
+const [isClockingIn, setIsClockingIn] = useState(false);
+const [isClockingOut, setIsClockingOut] = useState(false);
 
 
 /* ---------- DATE FORMAT FIX ---------- */
@@ -105,13 +107,23 @@ setBreaks(breakData);
 /* ---------- CLOCK ---------- */
 
 async function clockIn(){
-await callAPI("clockIn",{name:user.name});
-await loadData();
+  setIsClockingIn(true);
+  try {
+    await callAPI("clockIn",{name:user.name});
+    await loadData();
+  } finally {
+    setIsClockingIn(false);
+  }
 }
 
 async function clockOut(){
-await callAPI("clockOut",{name:user.name});
-await loadData();
+  setIsClockingOut(true);
+  try {
+    await callAPI("clockOut",{name:user.name});
+    await loadData();
+  } finally {
+    setIsClockingOut(false);
+  }
 }
 
 
@@ -286,17 +298,39 @@ return(
 <div className="flex gap-4 my-6">
 
 <button
-onClick={clockIn}
-className="bg-green-500 text-white px-4 py-2 rounded-lg w-full cursor-pointer"
+  onClick={clockIn}
+  disabled={isClockingIn}
+  className="bg-green-500 text-white px-4 py-2 rounded-lg w-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
 >
-Clock In
+  {isClockingIn ? (
+    <>
+      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Clocking In...
+    </>
+  ) : (
+    "Clock In"
+  )}
 </button>
 
 <button
-onClick={clockOut}
-className="bg-red-500 text-white px-4 py-2 rounded-lg w-full cursor-pointer"
+  onClick={clockOut}
+  disabled={isClockingOut}
+  className="bg-red-500 text-white px-4 py-2 rounded-lg w-full cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
 >
-Clock Out
+  {isClockingOut ? (
+    <>
+      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+      </svg>
+      Clocking Out...
+    </>
+  ) : (
+    "Clock Out"
+  )}
 </button>
 
 </div>

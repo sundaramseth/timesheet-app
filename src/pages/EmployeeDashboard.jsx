@@ -11,8 +11,8 @@ const [attendance,setAttendance] = useState([]);
 const [weekDates,setWeekDates] = useState([]);
 const [breaks,setBreaks] = useState({});
 const [manualTimes,setManualTimes] = useState({});
-const [isClockingIn, setIsClockingIn] = useState(false);
-const [isClockingOut, setIsClockingOut] = useState(false);
+// const [isClockingIn, setIsClockingIn] = useState(false);
+// const [isClockingOut, setIsClockingOut] = useState(false);
 
 
 /* ---------- DATE FORMAT FIX ---------- */
@@ -106,25 +106,25 @@ setBreaks(breakData);
 
 /* ---------- CLOCK ---------- */
 
-async function clockIn(){
-  setIsClockingIn(true);
-  try {
-    await callAPI("clockIn",{name:user.name});
-    await loadData();
-  } finally {
-    setIsClockingIn(false);
-  }
-}
+// async function clockIn(){
+//   setIsClockingIn(true);
+//   try {
+//     await callAPI("clockIn",{name:user.name});
+//     await loadData();
+//   } finally {
+//     setIsClockingIn(false);
+//   }
+// }
 
-async function clockOut(){
-  setIsClockingOut(true);
-  try {
-    await callAPI("clockOut",{name:user.name});
-    await loadData();
-  } finally {
-    setIsClockingOut(false);
-  }
-}
+// async function clockOut(){
+//   setIsClockingOut(true);
+//   try {
+//     await callAPI("clockOut",{name:user.name});
+//     await loadData();
+//   } finally {
+//     setIsClockingOut(false);
+//   }
+// }
 
 
 /* ---------- FIND DAY DATA ---------- */
@@ -295,7 +295,7 @@ return(
 
 </div>
 
-<div className="flex gap-4 my-6">
+{/* <div className="flex gap-4 my-6">
 
 <button
   onClick={clockIn}
@@ -333,7 +333,7 @@ return(
   )}
 </button>
 
-</div>
+</div> */}
 
 
 {weekDates.map(date=>{
@@ -429,19 +429,28 @@ className="mt-3 border border-blue-400 text-blue-500 px-3 py-2 rounded-lg w-full
 })}
 
 
-<div className="bg-blue-500 text-white rounded-xl p-5 text-center mt-6 shadow-xl">
+<div className="bg-blue-500 text-white rounded-xl p-6 mt-6 shadow-xl">
 
-<p className="text-lg font-semibold">
-Week total {formatHours(totalHours)} ${totalEarnings.toFixed(2)}
-</p>
+  <h3 className="text-xl font-bold text-center mb-4">Weekly Summary</h3>
 
-<p className="text-lg">
-4 weeks {formatHours(totalHours*4)} ${(totalEarnings*4).toFixed(2)}
-</p>
+  <div className="space-y-3">
 
-<p className="text-lg">
-Average month ${(totalEarnings*4).toFixed(2)}~
-</p>
+    <div className="flex justify-between items-center">
+      <span className="text-lg font-medium">Week Total:</span>
+      <span className="text-lg font-semibold">{formatHours(totalHours)} (${totalEarnings.toFixed(2)})</span>
+    </div>
+
+    <div className="flex justify-between items-center">
+      <span className="text-lg font-medium">4 Weeks:</span>
+      <span className="text-lg font-semibold">{formatHours(totalHours*4)} (${(totalEarnings*4).toFixed(2)})</span>
+    </div>
+
+    <div className="flex justify-between items-center">
+      <span className="text-lg font-medium">Average Month:</span>
+      <span className="text-lg font-semibold">${(totalEarnings*4).toFixed(2)}~</span>
+    </div>
+
+  </div>
 
 </div>
 

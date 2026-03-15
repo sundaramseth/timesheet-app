@@ -11,6 +11,7 @@ const [attendance,setAttendance] = useState([]);
 const [weekDates,setWeekDates] = useState([]);
 const [breaks,setBreaks] = useState({});
 const [manualTimes,setManualTimes] = useState({});
+const [saveEntry, setSaveEntry] = useState({});
 
 
 /* ---------- DATE FORMAT ---------- */
@@ -204,6 +205,8 @@ alert("Enter at least one time");
 return;
 }
 
+setSaveEntry(prev => ({...prev,[date]:"saving"}));
+
 await callAPI("saveManualTime",{
 name:user.name,
 date,
@@ -211,7 +214,19 @@ clockIn:times.in || "",
 clockOut:times.out || ""
 });
 
+try{
 await loadData();
+
+setSaveEntry(prev => ({...prev,[date]:"saved"}));
+
+setTimeout(()=>{
+setSaveEntry(prev =>({...prev,[date]:"idle"}))
+},5000)
+}catch (err){
+console.log(err)
+setSaveEntry(prev =>({...prev,[date]:"idle"}))
+}
+
 
 }
 
@@ -374,7 +389,11 @@ className="border rounded-lg p-2 w-full"
 onClick={()=>saveManual(key)}
 className="mt-2 bg-blue-500 text-white px-3 py-2 rounded-lg w-full"
 >
-Save Entry
+{saveEntry[key] === "saving" && "Saving Entry..."}
+
+{saveEntry[key] === "saved" && "✓ Entry Saved"}
+
+{(!saveEntry[key] || saveEntry[key] === "idle") && "Save Entry"}
 </button>
 
 

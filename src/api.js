@@ -1,17 +1,25 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbzQ7fHVzvAclAadfbi-DDvi2MF416wyvaSGrXFz8_JZ7lKtppQ77T0_nrEHd_Gapuir/exec";
-
+const API_URL = "/api/gas";
 
 export async function callAPI(action,data={}){
 
 const res = await fetch(API_URL,{
-method:"POST",
-mode: "no-cors",
-body:JSON.stringify({
-action,
-...data
-}),
+  method:"POST",
+  headers:{
+    "Content-Type":"application/json"
+  },
+  body: JSON.stringify({
+    action,
+    ...data
+  })
 });
 
-return res.json();
+const text = await res.text();
+
+try {
+  return JSON.parse(text);
+} catch (e) {
+  console.error("Invalid JSON:", text);
+  throw new Error("API response invalid",e);
+}
 
 }

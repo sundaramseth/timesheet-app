@@ -1,5 +1,14 @@
 export default async function handler(req, res) {
-  try {
+
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+    if (req.method === "OPTIONS") {
+    return res.status(200).end();
+     }
+
+    try {
 
     const response = await fetch(
       "https://script.google.com/macros/s/AKfycbzQ7fHVzvAclAadfbi-DDvi2MF416wyvaSGrXFz8_JZ7lKtppQ77T0_nrEHd_Gapuir/exec",

@@ -5,6 +5,7 @@ export async function callAPI(action,data={}){
 
 const res = await fetch(API_URL,{
 method:"POST",
+mode: "no-cors",
 body:JSON.stringify({
 action,
 ...data

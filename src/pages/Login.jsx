@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { callAPI } from "../api";
+import { callAPI } from "../services/api";
 import logo from "../assets/logo.png";
 
 export default function Login() {
@@ -29,7 +29,7 @@ password
  
 
     if(res.role === "admin"){
-      navigate("/admin");
+      navigate("/home");
     }else{
       navigate("/employee");
     }

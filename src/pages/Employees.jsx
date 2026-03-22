@@ -19,7 +19,16 @@ export default function Employees() {
   const loadEmployees = async () => {
     setLoading(true)
     const data = await newapi.getEmployees();
-    setEmployees(Array.isArray(data) ? data : data?.data || []);
+
+  console.log("EMP API RESPONSE:", data);
+
+  if (Array.isArray(data)) {
+    setEmployees(data);
+  } else if (Array.isArray(data?.data)) {
+    setEmployees(data.data);
+  } else {
+    setEmployees([]);
+  }
     setLoading(false)
   };
 

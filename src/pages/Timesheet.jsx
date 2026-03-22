@@ -52,7 +52,7 @@ function getWeekDates() {
 
 useEffect(() => {
   async function init() {
-        setLoading(true)
+    setLoading(true)
     const emp = await newapi.getEmployees();
     console.log("EMP API RESPONSE:", emp);
     setEmployees(emp);

@@ -16,7 +16,7 @@ export default function Employees() {
   const [addEmpLoader,setAddEmpLoader] = useState(false);
   const [loading,setLoading] = useState(false);
 
-  var loadEmployees = async () => {
+  const loadEmployees = async () => {
     setLoading(true)
     const data = await newapi.getEmployees();
     setEmployees(Array.isArray(data) ? data : data?.data || []);
@@ -43,7 +43,7 @@ export default function Employees() {
   };
 
   useEffect(() => {
-    loadEmployees();
+    (async()=>(loadEmployees()));
   }, []);
 
   return (

@@ -25,14 +25,7 @@ password
   if(res.status){
 
     localStorage.setItem("user",JSON.stringify(res));
-
- 
-
-    if(res.role === "admin"){
       navigate("/home");
-    }else{
-      navigate("/employee");
-    }
 
     setLoading(false)
 

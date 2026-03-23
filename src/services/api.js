@@ -1,25 +1,53 @@
 const API_URL = "/api/gas";
 
-export async function callAPI(action,data={}){
+export const api = {
+  async request(action, data = {}) {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        action,
+        ...data
+      })
+    });
 
-const res = await fetch(API_URL,{
-  method:"POST",
-  headers:{
-    "Content-Type":"application/json"
+    const text = await res.text();
+
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.error("Invalid JSON:", e);
+      return { error: "Invalid JSON" };
+    }
   },
-  body: JSON.stringify({
-    action,
-    ...data
-  })
-});
 
-const text = await res.text();
+  loginUser(data){
+    return this.request("loginUser",data);
+  },
 
-try {
-  return JSON.parse(text);
-} catch (e) {
-  console.error("Invalid JSON:", text);
-  throw new Error("API response invalid",e);
-}
+  getEmployees() {
+    return this.request("getEmployees");
+  },
 
-}
+  getTimesheets() {
+    return this.request("getTimesheets");
+  },
+
+  addEmployee(data) {
+    return this.request("addEmployee", data);
+  },
+
+  createTimesheet(data) {
+    return this.request("createTimesheet", data);
+  },
+
+  downloadPaystub(data) {
+    return this.request("downloadPaystub", data);
+  },
+
+  sendPaystubEmail(data) {
+    return this.request("sendPaystubEmail", data);
+  }
+};

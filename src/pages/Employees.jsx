@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { newapi } from "../services/newapi";
+import { api } from "../services/api";
 import Topbar from "../component/Topbar";
 
 export default function Employees() {
+
   const [employees, setEmployees] = useState([]);
   const [form, setForm] = useState({
     name: "",
@@ -16,26 +17,34 @@ export default function Employees() {
   const [addEmpLoader,setAddEmpLoader] = useState(false);
   const [loading,setLoading] = useState(false);
 
-  const loadEmployees = async () => {
-    setLoading(true)
-    const data = await newapi.getEmployees();
 
-  console.log("EMP API RESPONSE:", data);
+const loadEmployees = async () => {
+  try {
+    setLoading(true);
 
-  if (Array.isArray(data)) {
-    setEmployees(data);
-  } else if (Array.isArray(data?.data)) {
-    setEmployees(data.data);
-  } else {
+    const data = await api.getEmployees();
+
+   // console.log("EMP API RESPONSE:", data);
+
+    if (Array.isArray(data)) {
+      setEmployees(data);
+    } else {
+      console.error("Invalid employee response", data);
+      setEmployees([]);
+    }
+
+  } catch (err) {
+    console.error("API ERROR:", err);
     setEmployees([]);
+  } finally {
+    setLoading(false);
   }
-    setLoading(false)
-  };
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setAddEmpLoader(true)
-    await newapi.addEmployee(form);
+    await api.addEmployee(form);
 
     setForm({
       name: "",
@@ -52,7 +61,7 @@ export default function Employees() {
   };
 
   useEffect(() => {
-    (async()=>(loadEmployees()));
+    loadEmployees();
   }, []);
 
   return (
@@ -152,37 +161,34 @@ export default function Employees() {
                   <th className="p-3">Dependents</th>
                 </tr>
               </thead>
-
-              {loading?(
-                <p className="font-semibold p-1">Loading Employees Data...</p>
-              ):(
-                <>
                 
-              <tbody>
-                {employees.length > 0 ? (
-                  employees.map(emp => (
-                    <tr key={emp.id} className="border-b hover:bg-gray-50">
-                      <td className="p-3 font-medium">{emp.name}</td>
-                      <td className="p-3">{emp.email}</td>
-                      <td className="p-3">{emp.phone}</td>
-                      <td className="p-3 text-blue-600 font-semibold">
-                        ${emp.rate}
-                      </td>
-                      <td className="p-3">{emp.filling_status}</td>
-                      <td className="p-3">{emp.depend}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="6" className="text-center p-4 text-gray-500">
-                      No employees found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-                
-                </>
-              )}
+       <tbody>
+  {loading ? (
+    <tr>
+      <td colSpan="6" className="text-center p-4">
+        Loading Employees Data...
+      </td>
+    </tr>
+  ) : employees.length > 0 ? (
+    employees.map(emp => (
+      <tr key={emp.id} className="border-b hover:bg-gray-50">
+        <td className="p-3 font-medium">{emp.name}</td>
+        <td className="p-3">{emp.email}</td>
+        <td className="p-3">{emp.phone}</td>
+        <td className="p-3 text-blue-600 font-semibold">${emp.rate}</td>
+        <td className="p-3">{emp.filling_status}</td>
+        <td className="p-3">{emp.depend}</td>
+      </tr>
+    ))
+  ) : (
+    <tr>
+      <td colSpan="6" className="text-center p-4 text-gray-500">
+        No employees found
+      </td>
+    </tr>
+  )}
+        </tbody>
+              
 
 
             </table>

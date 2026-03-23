@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { callAPI } from "../services/api";
+import { api } from "../services/api";
 import logo from "../assets/logo.png";
 
 export default function Login() {
@@ -15,7 +15,7 @@ async function login(){
 
 setLoading(true);
 
-const res = await callAPI("loginUser",{
+const res = await api.loginUser({
 email,
 password
 });

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
-import { newapi } from "../services/newapi";
-import { callAPI } from "../services/api";
+import { api } from "../services/api";
 import Topbar from "../component/Topbar";
 
 export default function Timesheet() {
@@ -53,9 +52,16 @@ function getWeekDates() {
 useEffect(() => {
   async function init() {
     setLoading(true)
-    const emp = await newapi.getEmployees();
-    console.log("EMP API RESPONSE:", emp);
-    setEmployees(emp);
+    const emp = await api.getEmployees();
+   // console.log("EMP API RESPONSE:", emp);
+
+    if (Array.isArray(emp)) {
+      setEmployees(emp);
+    } else {
+      console.error("Invalid employee response", emp);
+      setEmployees([]);
+    }
+
 
     const week = getWeekDates();
     setWeekDates(week);
@@ -128,7 +134,7 @@ async function saveTimesheet() {
 
   setSaveTimeLoader(true)
 
-  await callAPI("createTimesheet", {
+  await api.createTimesheet({
     employeeId: selectedEmp.id,
     name: selectedEmp.name,
     email: selectedEmp.email,
@@ -149,7 +155,7 @@ async function saveTimesheet() {
 
 async function downloadPaystub() {
 setDownloadLoader(true)
-const res = await callAPI("downloadPaystub", {
+const res = await api.downloadPaystub({
   name: selectedEmp.name,
   email: selectedEmp.email,
   rate: selectedEmp.rate,
@@ -177,7 +183,7 @@ async function sendPaystubEmail() {
 
   setSendEmailLoader(true)
 
-  await newapi.sendPaystubEmail({
+  await api.sendPaystubEmail({
   name: selectedEmp.name,
   email: selectedEmp.email,
   rate: selectedEmp.rate,

@@ -39,6 +39,14 @@ export const api = {
     return this.request("addEmployee", data);
   },
 
+  deleteEmployee(id) {
+    return this.request("deleteEmployee", { id });
+  },
+
+  updateEmployee(data) {
+    return this.request("updateEmployee", data);
+  },
+
   createTimesheet(data) {
     return this.request("createTimesheet", data);
   },

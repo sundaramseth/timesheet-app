@@ -16,7 +16,24 @@ export default function Employees() {
 
   const [addEmpLoader,setAddEmpLoader] = useState(false);
   const [loading,setLoading] = useState(false);
+  const [editEmp, setEditEmp] = useState(null);
 
+const handleDelete = async (id) => {
+  if (!confirm("Delete this employee?")) return;
+
+  await api.deleteEmployee(id);
+  loadEmployees();
+};
+
+const startEdit = (emp) => {
+  setEditEmp(emp);
+};
+
+const saveEdit = async () => {
+  await api.updateEmployee(editEmp);
+  setEditEmp(null);
+  loadEmployees();
+};
 
 const loadEmployees = async () => {
   try {
@@ -156,28 +173,52 @@ const loadEmployees = async () => {
                   <th className="p-3">Name</th>
                   <th className="p-3">Email</th>
                   <th className="p-3">Phone</th>
-                  <th className="p-3">Rate</th>
-                  <th className="p-3">Status</th>
-                  <th className="p-3">Dependents</th>
+                  <th className="p-3 text-center">Rate</th>
+                  <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-center">Dependents</th>
+                  <th className="p-3">Action</th>
                 </tr>
               </thead>
                 
        <tbody>
   {loading ? (
     <tr>
-      <td colSpan="6" className="text-center p-4">
+      <td colSpan="7" className="text-center p-4">
         Loading Employees Data...
       </td>
     </tr>
   ) : employees.length > 0 ? (
     employees.map(emp => (
       <tr key={emp.id} className="border-b hover:bg-gray-50">
-        <td className="p-3 font-medium">{emp.name}</td>
-        <td className="p-3">{emp.email}</td>
-        <td className="p-3">{emp.phone}</td>
-        <td className="p-3 text-blue-600 font-semibold">${emp.rate}</td>
-        <td className="p-3">{emp.filling_status}</td>
-        <td className="p-3">{emp.depend}</td>
+        {editEmp?.id === emp.id ? (
+        <>
+          <td className="p-3"><input value={editEmp.name} onChange={e => setEditEmp({...editEmp, name: e.target.value})} /></td>
+          <td className="p-3"><input value={editEmp.email} onChange={e => setEditEmp({...editEmp, email: e.target.value})} /></td>
+          <td className="p-3"><input value={editEmp.phone} onChange={e => setEditEmp({...editEmp, phone: e.target.value})} /></td>
+          <td className="p-3"><input value={editEmp.rate} onChange={e => setEditEmp({...editEmp, rate: e.target.value})} className="text-center" /></td>
+          <td className="p-3"><input value={editEmp.filling_status} onChange={e => setEditEmp({...editEmp, filling_status: e.target.value})} className="text-center"  /></td>
+          <td className="p-3"><input value={editEmp.depend} onChange={e => setEditEmp({...editEmp, depend: e.target.value})} className="text-center"  /></td>
+
+          <td className="flex flex-row gap-2 p-2">
+            <button onClick={saveEdit} className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded cursor-pointer text-xs">Save</button>
+            <button onClick={() => setEditEmp(null)} className="bg-gray-400 hover:bg-gray-500 text-white px-2 py-1 rounded cursor-pointer text-xs">Cancel</button>
+          </td>
+        </>
+      ) : (
+        <>
+          <td className="p-3">{emp.name}</td>
+          <td className="p-3">{emp.email}</td>
+          <td className="p-3">{emp.phone}</td>
+          <td className="p-3 text-center">${emp.rate}</td>
+          <td className="p-3 text-center">{emp.filling_status}</td>
+          <td className="p-3 text-center">{emp.depend}</td>
+
+          <td className="flex flex-row gap-2 p-2">
+            <button onClick={() => startEdit(emp)} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded cursor-pointer text-xs">Edit</button>
+            <button onClick={() => handleDelete(emp.id)} className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded cursor-pointer text-xs">Delete</button>
+          </td>
+        </>
+      )}
       </tr>
     ))
   ) : (

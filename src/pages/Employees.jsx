@@ -11,7 +11,9 @@ export default function Employees() {
     phone: "",
     rate: "",
     filling_status: "",
-    depend: ""
+    depend: "",
+    password:"",
+    role:""
   });
 
   const [addEmpLoader,setAddEmpLoader] = useState(false);
@@ -69,7 +71,9 @@ const loadEmployees = async () => {
       phone: "",
       rate: "",
       filling_status: "",
-      depend: ""
+      depend: "",
+      password:"",
+      role:""
     });
 
     loadEmployees();
@@ -81,6 +85,7 @@ const loadEmployees = async () => {
     loadEmployees();
   }, []);
 
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-400 to-blue-600">
 
@@ -89,7 +94,7 @@ const loadEmployees = async () => {
         <Topbar />
       </header>
 
-      <div className="max-w-5xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-6">
 
         {/* ===== ADD EMPLOYEE CARD ===== */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
@@ -150,9 +155,25 @@ const loadEmployees = async () => {
               className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
 
+            <input
+              type="text"
+              placeholder="Password"
+              value={form.password}
+              onChange={e => setForm({ ...form, password: e.target.value })}
+              className="border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+
+            <select id="role" name="role" className="border rounded-lg" onChange={e => setForm({ ...form, role: e.target.value })}>
+              <option>Select User type</option>
+              <option value="employee" >Employee</option>
+              <option value="admin">Admin</option>
+            </select>
+
+
+
             <button
               type="submit"
-              className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition"
+              className="col-span-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition cursor-pointer"
             >
              {addEmpLoader?"Saving Employee...":"Add Employee"} 
             </button>
@@ -176,6 +197,8 @@ const loadEmployees = async () => {
                   <th className="p-3 text-center">Rate</th>
                   <th className="p-3 text-center">Status</th>
                   <th className="p-3 text-center">Dependents</th>
+                   <th className="p-3 text-center">Password</th>
+                    <th className="p-3 text-center">Role</th>
                   <th className="p-3">Action</th>
                 </tr>
               </thead>
@@ -195,9 +218,11 @@ const loadEmployees = async () => {
           <td className="p-3"><input value={editEmp.name} onChange={e => setEditEmp({...editEmp, name: e.target.value})} /></td>
           <td className="p-3"><input value={editEmp.email} onChange={e => setEditEmp({...editEmp, email: e.target.value})} /></td>
           <td className="p-3"><input value={editEmp.phone} onChange={e => setEditEmp({...editEmp, phone: e.target.value})} /></td>
-          <td className="p-3"><input value={editEmp.rate} onChange={e => setEditEmp({...editEmp, rate: e.target.value})} className="text-center" /></td>
-          <td className="p-3"><input value={editEmp.filling_status} onChange={e => setEditEmp({...editEmp, filling_status: e.target.value})} className="text-center"  /></td>
-          <td className="p-3"><input value={editEmp.depend} onChange={e => setEditEmp({...editEmp, depend: e.target.value})} className="text-center"  /></td>
+          <td className="p-3"><input value={editEmp.rate} onChange={e => setEditEmp({...editEmp, rate: e.target.value})} className="text-center border" /></td>
+          <td className="p-3"><input value={editEmp.filling_status} onChange={e => setEditEmp({...editEmp, filling_status: e.target.value})} className="text-center border"  /></td>
+          <td className="p-3"><input value={editEmp.depend} onChange={e => setEditEmp({...editEmp, depend: e.target.value})} className="text-center border"  /></td>
+          <td className="p-3"><input value={editEmp.password} onChange={e => setEditEmp({...editEmp, password: e.target.value})} className="text-center border"  /></td>
+          <td className="p-3"><input value={editEmp.role} onChange={e => setEditEmp({...editEmp, role: e.target.value})} className="text-center border"  /></td>
 
           <td className="flex flex-row gap-2 p-2">
             <button onClick={saveEdit} className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded cursor-pointer text-xs">Save</button>
@@ -212,6 +237,8 @@ const loadEmployees = async () => {
           <td className="p-3 text-center">${emp.rate}</td>
           <td className="p-3 text-center">{emp.filling_status}</td>
           <td className="p-3 text-center">{emp.depend}</td>
+          <td className="p-3 text-center">{emp.password}</td>
+          <td className="p-3 text-center">{emp.role}</td>
 
           <td className="flex flex-row gap-2 p-2">
             <button onClick={() => startEdit(emp)} className="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded cursor-pointer text-xs">Edit</button>

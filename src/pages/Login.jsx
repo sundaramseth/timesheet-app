@@ -20,12 +20,16 @@ email,
 password
 });
 
-  console.log(res);
-
   if(res.status){
 
     localStorage.setItem("user",JSON.stringify(res));
+    console.log(res.role)
+    if(res.role == "admin"){
       navigate("/home");
+    }else{
+       navigate("/employeeclock")
+    }
+
 
     setLoading(false)
 

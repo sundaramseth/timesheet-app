@@ -57,5 +57,17 @@ export const api = {
 
   sendPaystubEmail(data) {
     return this.request("sendPaystubEmail", data);
-  }
+  },
+
+  clockIn(data) {
+  return this.request("clockIn", data);
+},
+
+clockOut(data) {
+  return this.request("clockOut", data);
+},
+
+getEmployeeTimesheet(data) {
+  return this.request("getEmployeeTimesheet", data);
+}
 };

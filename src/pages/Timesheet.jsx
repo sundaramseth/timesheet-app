@@ -16,6 +16,11 @@ const [saveTimeLoader, setSaveTimeLoader] = useState(false);
 const [downloadLoader, setDownloadLoader] = useState(false);
 const [sendEmailLoader, setSendEmailLoader] = useState(false);
 
+const [rangeStart, setRangeStart] = useState("");
+const [rangeEnd, setRangeEnd] = useState("");
+
+
+
 const [loading,setLoading] = useState(false);
 
 /* ================= DATE ================= */
@@ -47,6 +52,35 @@ function getWeekDates() {
 }
 
 /* ================= LOAD ================= */
+
+useEffect(() => {
+  if (!selectedEmp) return;
+
+async function loadTimes() {
+  const res = await api.getEmployeeTimesheet({
+    employeeId: selectedEmp.id
+  });
+
+  if (res?.times) {
+
+    // ✅ FILTER BASED ON RANGE (if selected)
+    let filtered = {};
+
+    if (rangeStart && rangeEnd) {
+      Object.keys(res.times).forEach(date => {
+        if (date >= rangeStart && date <= rangeEnd) {
+          filtered[date] = res.times[date];
+        }
+      });
+      setManualTimes(filtered);
+    } else {
+      setManualTimes(res.times);
+    }
+  }
+}
+
+  loadTimes();
+}, [selectedEmp]);
 
 useEffect(() => {
   async function init() {
@@ -163,47 +197,74 @@ async function saveTimesheet() {
 /* ================= PDF ================= */
 
 async function downloadPaystub() {
-setDownloadLoader(true)
+  if (!selectedEmp) return;
 
-const res = await api.downloadPaystub({
-  name: selectedEmp.name,
-  email: selectedEmp.email,
-  rate: selectedEmp.rate,
-  weekStart:formatDateLocal(weekDates[0]),
-  weekEnd:formatDateLocal(weekDates[6]),
-  totalHours,
-  totalPay:totalEarnings,
-  filling_status:selectedEmp.filling_status,
-  dependent:selectedEmp.depend
-});
+  setDownloadLoader(true);
 
-if (res.url) window.open(res.url);
-else alert("Failed");
+  const res = await api.downloadPaystub({
+    name: selectedEmp.name,
+    email: selectedEmp.email,
+    rate: selectedEmp.rate,
+    weekStart: rangeStart || formatDateLocal(weekDates[0]),
+    weekEnd: rangeEnd || formatDateLocal(weekDates[weekDates.length - 1]),
+    totalHours,
+    totalPay: totalEarnings,
+    filling_status: selectedEmp.filling_status,
+    dependent: selectedEmp.depend
+  });
 
-setDownloadLoader(false)
+  if (res.url) window.open(res.url);
+  else alert("Failed");
+
+  setDownloadLoader(false);
 }
 
 /* ================= EMAIL ================= */
 
-async function sendPaystubEmail() { 
+async function sendPaystubEmail() {
   if (!selectedEmp) return;
 
-  setSendEmailLoader(true)
+  setSendEmailLoader(true);
 
   await api.sendPaystubEmail({
     name: selectedEmp.name,
     email: selectedEmp.email,
     rate: selectedEmp.rate,
-    weekStart: formatDateLocal(weekDates[0]),
-    weekEnd: formatDateLocal(weekDates[6]),
+    weekStart: rangeStart || formatDateLocal(weekDates[0]),
+    weekEnd: rangeEnd || formatDateLocal(weekDates[weekDates.length - 1]),
     totalHours,
     totalPay: totalEarnings,
-    filling_status:selectedEmp.filling_status,
-    dependent:selectedEmp.depend
+    filling_status: selectedEmp.filling_status,
+    dependent: selectedEmp.depend
   });
 
   alert("Email sent!");
-  setSendEmailLoader(false)
+  setSendEmailLoader(false);
+}
+
+
+function applyDateRange() {
+  if (!rangeStart || !rangeEnd) {
+    alert("Select date range");
+    return;
+  }
+
+  if (rangeStart > rangeEnd) {
+    alert("Invalid date range");
+    return;
+  }
+
+  // create dynamic date list
+  let dates = [];
+  let start = new Date(rangeStart);
+  let end = new Date(rangeEnd);
+
+  while (start <= end) {
+    dates.push(new Date(start));
+    start.setDate(start.getDate() + 1);
+  }
+
+  setWeekDates(dates);
 }
 
 /* ================= UI ================= */
@@ -231,6 +292,35 @@ return (
     </option>
   ))}
 </select>
+
+
+{selectedEmp && (
+  <div className="bg-white p-4 rounded-xl shadow mb-4 flex flex-col md:flex-row gap-3">
+
+    <input
+      type="date"
+      value={rangeStart}
+      onChange={(e) => setRangeStart(e.target.value)}
+      className="border p-2 rounded w-full"
+    />
+
+    <input
+      type="date"
+      value={rangeEnd}
+      onChange={(e) => setRangeEnd(e.target.value)}
+      className="border p-2 rounded w-full"
+    />
+
+    <button
+      onClick={applyDateRange}
+      className="bg-blue-600 text-white text-sm px-4 py-2 rounded w-full md:w-auto cursor-pointer"
+    >
+      Load Range
+    </button>
+
+  </div>
+)}
+
 
 {loading ? (
   <p className="font-semibold text-white ">Loading TimeSheet...</p>
@@ -283,7 +373,7 @@ return (
         {/* ✅ ONLY CHANGE IN UI */}
         <button
           onClick={()=>addBreak(key)}
-          className="bg-blue-500 text-white px-2 py-1 rounded text-xs text-center"
+          className="bg-blue-500 text-white px-2 py-1 rounded text-xs text-center cursor-pointer"
         > Break<br/>
           15&nbsp;min
         </button>
@@ -314,15 +404,15 @@ return (
 
 <div className="flex flex-col md:flex-row gap-3 mt-6">
 
-  <button onClick={saveTimesheet} className="bg-green-600 text-white px-4 py-3 rounded w-full">
+  <button onClick={saveTimesheet} className="bg-green-600 text-white px-4 py-3 rounded w-full cursor-pointer">
    {saveTimeLoader? "Saving..." :"Save Timesheet"}
   </button>
 
-  <button onClick={downloadPaystub} className="bg-blue-800 text-white px-4 py-3 rounded w-full">
+  <button onClick={downloadPaystub} className="bg-blue-800 text-white px-4 py-3 rounded w-full cursor-pointer">
    {downloadLoader?"Downloading...":"Download PDF"} 
   </button>
 
-  <button onClick={sendPaystubEmail} className="bg-purple-600 text-white px-4 py-3 rounded w-full">
+  <button onClick={sendPaystubEmail} className="bg-purple-600 text-white px-4 py-3 rounded w-full cursor-pointer">
    {sendEmailLoader?"Sending Email...": "Send Email"}
   </button>
 

@@ -7,6 +7,7 @@ export default function Topbar() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
 
+
   function logout(){
     localStorage.removeItem("user");
     navigate("/");
@@ -30,12 +31,19 @@ export default function Topbar() {
         {/* User Info */}
         <div className="flex flex-row justify-end items-center gap-4 w-1/3">
 
-        <div className="flex flex-row gap-2 items-center justify-center font-semibold text-sm">
+        {(user.role == "admin") && (
+          <>
+          <div className="flex flex-row gap-2 items-center justify-center font-semibold text-sm">
 
           <a href="/home" className="py-1 px-2 bg-gray-300 hover:bg-blue-500 rounded-xl">Home</a>
           <a href="/addemployee" className="py-1 px-2 bg-gray-300 hover:bg-blue-500 rounded-xl">+Employees</a>
         </div>
 
+          </>
+        )}
+
+
+   
           <span className="text-gray-600 font-medium text-sm md:block hidden">
             {user?.name}
           </span>

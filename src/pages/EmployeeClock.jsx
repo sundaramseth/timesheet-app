@@ -28,9 +28,11 @@ export default function EmployeeClock() {
         ...res.times[date]
       }));
 
-      setLogs(arr);
+     setLogs(
+      arr.sort((a, b) => new Date(b.date) - new Date(a.date))
+    );
 
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date().toLocaleDateString("en-CA");
       setTodayLog(res.times[today] || {});
     }
 
@@ -73,51 +75,66 @@ export default function EmployeeClock() {
     setLoadingAction2(false);
   };
 
-  const calculateHours = (inTime, outTime) => {
-    if (!inTime || !outTime) return 0;
+const calculateDayHours = (day) => {
+  if (!day?.entries) return 0;
 
-    const start = new Date(`2024-01-01T${inTime}`);
-    let end = new Date(`2024-01-01T${outTime}`);
+  return day.entries.reduce((sum, e) => {
+    if (!e.in || !e.out) return sum;
+
+    const start = new Date(`2024-01-01T${e.in}`);
+    let end = new Date(`2024-01-01T${e.out}`);
 
     if (end < start) end.setDate(end.getDate() + 1);
 
-    return ((end - start) / (1000 * 60 * 60)).toFixed(2);
-  };
+    return sum + (end - start) / (1000 * 60 * 60);
+  }, 0);
+};
 
   // ✅ FILTER
-  const applyFilter = () => {
-    if (!startDate || !endDate) return alert("Select dates");
+const applyFilter = () => {
+  if (!startDate || !endDate) return alert("Select dates");
 
-    if (startDate > endDate) return alert("Invalid range");
+  const start = new Date(startDate);
+  const end = new Date(endDate);
 
-    setFilteredLogs(
-      logs.filter(l => l.date >= startDate && l.date <= endDate)
-    );
-  };
+  if (start > end) return alert("Invalid range");
 
-  const resetFilter = () => {
-    setStartDate("");
-    setEndDate("");
-    setFilteredLogs([]);
-  };
+  const filtered = logs.filter((l) => {
+    const logDate = new Date(l.date);
+    return logDate >= start && logDate <= end;
+  });
+
+  if (filtered.length === 0) {
+  alert("No records found");
+}
+
+  setFilteredLogs(filtered);
+};
+
+const resetFilter = () => {
+  setStartDate("");
+  setEndDate("");
+  setFilteredLogs([]);
+};
 
   useEffect(() => {
     setFilteredLogs(logs);
   }, [logs]);
 
-  const activeLogs = filteredLogs.length ? filteredLogs : logs;
+const activeLogs = startDate && endDate ? filteredLogs : logs;
 
-  const totalHours = activeLogs.reduce(
-    (sum, log) => sum + Number(calculateHours(log.in, log.out)),
-    0
-  );
+const totalHours = activeLogs.reduce(
+  (sum, log) => sum + calculateDayHours(log),
+  0
+);
 
   const totalEarning = totalHours * (employee?.rate || 0);
 
   // ✅ BUTTON STATE LOGIC
-  const isClockedIn = todayLog?.in && !todayLog?.out;
-  const isClockedOut = todayLog?.out;
+const lastEntry = todayLog?.entries?.[todayLog.entries.length - 1];
 
+const isClockedIn = lastEntry?.in && !lastEntry?.out;
+const isClockedOut = lastEntry?.out;
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-500 to-indigo-600">
       <Topbar />
@@ -134,8 +151,8 @@ export default function EmployeeClock() {
             <p className="text-sm mt-1">{now.toLocaleString()}</p>
 
             <div className="mt-3 text-sm">
-              <p><strong>Clock In:</strong> {todayLog?.in || "-"}</p>
-              <p><strong>Clock Out:</strong> {todayLog?.out || "-"}</p>
+          <p><strong>Clock In:</strong> {lastEntry?.in || "-"}</p>
+          <p><strong>Clock Out:</strong> {lastEntry?.out || "-"}</p>
             </div>
 
             <div className="mt-3 text-sm">
@@ -218,15 +235,28 @@ export default function EmployeeClock() {
 
               <tbody>
                 {activeLogs.map((log, i) => {
-                  const hours = calculateHours(log.in, log.out);
+                  const hours = calculateDayHours(log);
                   const earning = hours * (employee?.rate || 0);
 
                   return (
                     <tr key={i} className="border-b text-center">
                       <td className="p-2 text-left">{log.date}</td>
-                      <td>{log.in || "-"}</td>
-                      <td>{log.out || "-"}</td>
-                      <td>{hours}</td>
+                    <td>
+                    {log.entries?.length
+                      ? log.entries.map((e, idx) => (
+                          <div key={idx}>{e.in || "-"}</div>
+                        ))
+                      : "-"}
+                  </td>
+
+                  <td>
+                    {log.entries?.length
+                      ? log.entries.map((e, idx) => (
+                          <div key={idx}>{e.out || "-"}</div>
+                        ))
+                      : "-"}
+                  </td>
+                      <td>{hours.toFixed(2)} Hr</td>
                       <td>${earning.toFixed(2)}</td>
                     </tr>
                   );

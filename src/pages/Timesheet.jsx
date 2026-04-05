@@ -106,19 +106,19 @@ const RATE = selectedEmp ? parseFloat(selectedEmp.rate) : 0;
 
 /* ================= TIME ================= */
 
-function updateClockIn(date, val) {
-  setManualTimes(prev => ({
-    ...prev,
-    [date]: { ...prev[date], in: val }
-  }));
-}
+// function updateClockIn(date, val) {
+//   setManualTimes(prev => ({
+//     ...prev,
+//     [date]: { ...prev[date], in: val }
+//   }));
+// }
 
-function updateClockOut(date, val) {
-  setManualTimes(prev => ({
-    ...prev,
-    [date]: { ...prev[date], out: val }
-  }));
-}
+// function updateClockOut(date, val) {
+//   setManualTimes(prev => ({
+//     ...prev,
+//     [date]: { ...prev[date], out: val }
+//   }));
+// }
 
 // ✅ NEW BREAK BUTTON LOGIC
 function addBreak(date) {
@@ -133,23 +133,21 @@ function addBreak(date) {
 
 /* ================= CALC ================= */
 
-function calculateHours(inTime, outTime, breakMinutes = 0) {
-  if (!inTime || !outTime) return 0;
 
-  const start = new Date(`2024-01-01T${inTime}`);
-  let end = new Date(`2024-01-01T${outTime}`);
 
-  // ✅ overnight fix
-  if (end < start) {
-    end.setDate(end.getDate() + 1);
-  }
+function calculateDayHours(dayData) {
+  if (!dayData?.entries) return 0;
 
-  let total = (end - start) / (1000 * 60 * 60);
+  return dayData.entries.reduce((sum, entry) => {
+    if (!entry.in || !entry.out) return sum;
 
-  // ✅ subtract break
-  total -= breakMinutes / 60;
+    const start = new Date(`2024-01-01T${entry.in}`);
+    let end = new Date(`2024-01-01T${entry.out}`);
 
-  return total > 0 ? Number(total.toFixed(2)) : 0;
+    if (end < start) end.setDate(end.getDate() + 1);
+
+    return sum + (end - start) / (1000 * 60 * 60);
+  }, 0) - ((dayData.breakMinutes || 0) / 60);
 }
 
 function formatHours(h) {
@@ -162,8 +160,7 @@ function formatHours(h) {
 
 const totalHours = weekDates.reduce((sum, date) => {
   const key = formatDateLocal(date);
-  const t = manualTimes[key] || {};
-  return sum + calculateHours(t.in, t.out, t.breakMinutes);
+  return sum + calculateDayHours(manualTimes[key]);
 }, 0);
 
 const totalEarnings = totalHours * RATE;
@@ -321,7 +318,8 @@ return (
   </div>
 )}
 
-
+{selectedEmp != null ? (
+ <>
 {loading ? (
   <p className="font-semibold text-white ">Loading TimeSheet...</p>
 ) : (
@@ -329,9 +327,9 @@ return (
   {weekDates.map(date => {
 
   const key = formatDateLocal(date);
-  const t = manualTimes[key] || {};
+  const t = manualTimes[key] || { entries: [] };
 
-  const hours = calculateHours(t.in, t.out, t.breakMinutes);
+  const hours = calculateDayHours(t);
   const earnings = hours > 0 ? (hours * RATE).toFixed(2) : "0.00";
 
   const day = date.toLocaleDateString("en-US",{ weekday:"long" });
@@ -355,28 +353,60 @@ return (
         </div>
       </div>
 
-      <div className="flex gap-3 mt-3">
-        <input
-          type="time"
-          value={t.in || ""}
-          onChange={(e)=>updateClockIn(key,e.target.value)}
-          className="border p-2 w-full rounded"
-        />
+      <div className="flex flex-col gap-3 mt-3">
+      {t.entries?.map((entry, idx) => (
+        <div key={idx} className="flex gap-2 mt-2">
+          <input
+            type="time"
+            value={entry.in || ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              setManualTimes(prev => {
+                const updated = { ...prev };
+                updated[key].entries[idx].in = val;
+                return updated;
+              });
+            }}
+            className="border p-2 w-full rounded"
+          />
 
-        <input
-          type="time"
-          value={t.out || ""}
-          onChange={(e)=>updateClockOut(key,e.target.value)}
-          className="border p-2 w-full rounded"
-        />
+          <input
+            type="time"
+            value={entry.out || ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              setManualTimes(prev => {
+                const updated = { ...prev };
+                updated[key].entries[idx].out = val;
+                return updated;
+              });
+            }}
+            className="border p-2 w-full rounded"
+          />
+        </div>
+      ))}
+        
+        
+        <button
+        onClick={() => {
+          setManualTimes(prev => ({
+            ...prev,
+            [key]: {
+              ...prev[key],
+              entries: [...(prev[key]?.entries || []), { in: "", out: "" }]
+            }
+          }));
+        }}
+        className="bg-green-500 text-white px-2 py-2 rounded text-xs mt-2"
+      >
+        + Add Entry
+      </button>
 
-        {/* ✅ ONLY CHANGE IN UI */}
         <button
           onClick={()=>addBreak(key)}
-          className="bg-blue-500 text-white px-2 py-1 rounded text-xs text-center cursor-pointer"
-        > Break<br/>
-          15&nbsp;min
-        </button>
+          className="bg-blue-500 text-white px-2 py-2 rounded text-xs text-center cursor-pointer"
+        > Break +15 min</button>
+
 
       </div>
 
@@ -417,6 +447,13 @@ return (
   </button>
 
 </div>
+
+</> 
+):(
+  <>
+  <p className="text-white font-semibold text-center mt-10">Select an employee to view timesheet</p>
+  </> 
+)}
 
 </div>
 </div>

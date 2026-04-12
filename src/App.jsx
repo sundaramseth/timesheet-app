@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import Employees from "./pages/Employees";
 import Timesheet from "./pages/Timesheet";
 import EmployeeClock from "./pages/EmployeeClock";
+import HistoryAllEmployee from "./pages/HistoryAllEmployee";
 
 function App() {
 
@@ -15,6 +16,7 @@ function App() {
         <Route path="/employeeclock" element={<EmployeeClock/>}/>
         <Route path="/home" element={<Timesheet />} />
         <Route path="/addemployee" element={<Employees/>}/>
+        <Route path="/historyallemployee" element={<HistoryAllEmployee/>}/>
 
       </Routes>
 

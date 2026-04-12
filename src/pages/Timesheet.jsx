@@ -439,7 +439,7 @@ return (
   </button>
 
   <button onClick={downloadPaystub} className="bg-blue-800 text-white px-4 py-3 rounded w-full cursor-pointer">
-   {downloadLoader?"Downloading...":"Download PDF"} 
+   {downloadLoader?"Downloading...":"Download Paystub"} 
   </button>
 
   <button onClick={sendPaystubEmail} className="bg-purple-600 text-white px-4 py-3 rounded w-full cursor-pointer">

@@ -37,6 +37,7 @@ export default function Topbar() {
 
           <a href="/home" className="py-1 px-2 bg-gray-300 hover:bg-blue-500 rounded-xl">Home</a>
           <a href="/addemployee" className="py-1 px-2 bg-gray-300 hover:bg-blue-500 rounded-xl">+Employees</a>
+          <a href="/historyallemployee" className="py-1 px-2 bg-gray-300 hover:bg-blue-500 rounded-xl">History</a>
         </div>
 
           </>

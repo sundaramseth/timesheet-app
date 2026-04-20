@@ -14,7 +14,11 @@ const [manualTimes, setManualTimes] = useState({});
 
 const [saveTimeLoader, setSaveTimeLoader] = useState(false);
 const [downloadLoader, setDownloadLoader] = useState(false);
+const [previewLoader, setPreviewLoader] = useState(false);
 const [sendEmailLoader, setSendEmailLoader] = useState(false);
+
+const [applySS, setApplySS] = useState(true);
+const [applyMedicare, setApplyMedicare] = useState(true);
 
 const [rangeStart, setRangeStart] = useState("");
 const [rangeEnd, setRangeEnd] = useState("");
@@ -165,6 +169,16 @@ const totalHours = weekDates.reduce((sum, date) => {
 
 const totalEarnings = totalHours * RATE;
 
+/* ================= TAX & CALC ================= */
+
+const subtotal = totalHours * RATE;
+
+// Tax calculations (placeholder - backend handles actual calculation)
+const socialSecurityTax = applySS ? (subtotal * 0.062).toFixed(2) : 0;
+const medicareTax = applyMedicare ? (subtotal * 0.0145).toFixed(2) : 0;
+const totalDeductions = parseFloat(socialSecurityTax) + parseFloat(medicareTax);
+const netPay = (subtotal - totalDeductions).toFixed(2);
+
 /* ================= SAVE ================= */
 
 async function saveTimesheet() {
@@ -191,7 +205,37 @@ async function saveTimesheet() {
   alert("Timesheet Saved!");
 }
 
-/* ================= PDF ================= */
+/* ================= PREVIEW PAYSTUB ================= */
+
+async function previewPaystub() {
+  if (!selectedEmp) return;
+
+  setPreviewLoader(true);
+
+  const res = await api.previewPaystub({
+    name: selectedEmp.name,
+    email: selectedEmp.email,
+    rate: selectedEmp.rate,
+    weekStart: rangeStart || formatDateLocal(weekDates[0]),
+    weekEnd: rangeEnd || formatDateLocal(weekDates[weekDates.length - 1]),
+    totalHours,
+    totalPay: subtotal,
+    applySS,
+    applyMedicare,
+    filling_status: selectedEmp.filling_status,
+    dependent: selectedEmp.depend
+  });
+
+  if (res.url) {
+    window.open(res.url, "_blank");
+  } else {
+    alert("Failed to generate preview");
+  }
+
+  setPreviewLoader(false);
+}
+
+/* ================= DOWNLOAD PAYSTUB ================= */
 
 async function downloadPaystub() {
   if (!selectedEmp) return;
@@ -205,7 +249,9 @@ async function downloadPaystub() {
     weekStart: rangeStart || formatDateLocal(weekDates[0]),
     weekEnd: rangeEnd || formatDateLocal(weekDates[weekDates.length - 1]),
     totalHours,
-    totalPay: totalEarnings,
+    totalPay: subtotal,
+    applySS,
+    applyMedicare,
     filling_status: selectedEmp.filling_status,
     dependent: selectedEmp.depend
   });
@@ -230,7 +276,9 @@ async function sendPaystubEmail() {
     weekStart: rangeStart || formatDateLocal(weekDates[0]),
     weekEnd: rangeEnd || formatDateLocal(weekDates[weekDates.length - 1]),
     totalHours,
-    totalPay: totalEarnings,
+    totalPay: subtotal,
+    applySS,
+    applyMedicare,
     filling_status: selectedEmp.filling_status,
     dependent: selectedEmp.depend
   });
@@ -419,31 +467,104 @@ return (
 
 <div id="paystub" className="bg-white p-6 rounded-xl shadow mt-6">
 
-  <h2 className="text-xl font-bold mb-3">Paystub Summary</h2>
+  <h2 className="text-xl font-bold mb-4">Paystub Summary</h2>
 
-  <p><b>Name:</b> {selectedEmp?.name}</p>
-  <p><b>Email:</b> {selectedEmp?.email}</p>
-  <p><b>Rate:</b> ${RATE}/hr</p>
+  {/* Employee Info */}
+  <div className="mb-4 pb-4 border-b">
+    <p><b>Name:</b> {selectedEmp?.name}</p>
+    <p><b>Email:</b> {selectedEmp?.email}</p>
+  </div>
 
-  <hr className="my-3"/>
+  {/* Hours & Rate Section */}
+  <div className="mb-4 pb-4 border-b">
+    <h3 className="font-semibold text-blue-600 mb-2">Earnings</h3>
+    <div className="grid grid-cols-2 gap-4">
+      <div>
+        <p className="text-gray-600 text-sm">Total Hours</p>
+        <p className="text-lg font-bold">{formatHours(totalHours)}</p>
+      </div>
+      <div>
+        <p className="text-gray-600 text-sm">Hourly Rate</p>
+        <p className="text-lg font-bold">${RATE.toFixed(2)}/hr</p>
+      </div>
+    </div>
+  </div>
 
-  <p><b>Total Hours:</b> {formatHours(totalHours)}</p>
-  <p><b>Total Pay:</b> ${totalEarnings.toFixed(2)}</p>
+  {/* Subtotal */}
+  <div className="mb-4 pb-4 border-b bg-blue-50 p-3 rounded">
+    <p className="text-gray-600 text-sm">Subtotal</p>
+    <p className="text-2xl font-bold text-blue-600">${subtotal.toFixed(2)}</p>
+  </div>
+
+  {/* Taxes Section */}
+  <div className="mb-4 pb-4 border-b">
+    <h3 className="font-semibold text-blue-600 mb-3">Deductions</h3>
+    
+    <label className="flex items-center gap-2 mb-3 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={applySS}
+        onChange={(e) => setApplySS(e.target.checked)}
+        className="w-4 h-4 cursor-pointer"
+      />
+      <span className="flex-1">Social Security (6.2%)</span>
+      <span className="font-semibold">${socialSecurityTax}</span>
+    </label>
+
+    <label className="flex items-center gap-2 cursor-pointer">
+      <input
+        type="checkbox"
+        checked={applyMedicare}
+        onChange={(e) => setApplyMedicare(e.target.checked)}
+        className="w-4 h-4 cursor-pointer"
+      />
+      <span className="flex-1">Medicare (1.45%)</span>
+      <span className="font-semibold">${medicareTax}</span>
+    </label>
+  </div>
+
+  {/* Net Pay */}
+  <div className="bg-green-50 p-3 rounded">
+    <p className="text-gray-600 text-sm">Net Pay</p>
+    <p className="text-3xl font-bold text-green-600">${netPay}</p>
+  </div>
 
 </div>
 
-<div className="flex flex-col md:flex-row gap-3 mt-6">
+<div className="flex flex-col gap-3 mt-6">
 
-  <button onClick={saveTimesheet} className="bg-green-600 text-white px-4 py-3 rounded w-full cursor-pointer">
-   {saveTimeLoader? "Saving..." :"Save Timesheet"}
+  <button 
+    onClick={saveTimesheet} 
+    disabled={saveTimeLoader}
+    className="bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white px-4 py-3 rounded w-full cursor-pointer font-semibold transition"
+  >
+    {saveTimeLoader ? "Saving..." : "Save Timesheet"}
   </button>
 
-  <button onClick={downloadPaystub} className="bg-blue-800 text-white px-4 py-3 rounded w-full cursor-pointer">
-   {downloadLoader?"Downloading...":"Download Paystub"} 
-  </button>
+  <div className="grid grid-cols-2 gap-3">
+    <button 
+      onClick={previewPaystub} 
+      disabled={previewLoader}
+      className="bg-amber-600 hover:bg-amber-700 disabled:bg-gray-400 text-white px-4 py-3 rounded cursor-pointer font-semibold transition"
+    >
+      {previewLoader ? "Generating..." : "Preview"}
+    </button>
 
-  <button onClick={sendPaystubEmail} className="bg-purple-600 text-white px-4 py-3 rounded w-full cursor-pointer">
-   {sendEmailLoader?"Sending Email...": "Send Email"}
+    <button 
+      onClick={downloadPaystub} 
+      disabled={downloadLoader}
+      className="bg-blue-800 hover:bg-blue-900 disabled:bg-gray-400 text-white px-4 py-3 rounded cursor-pointer font-semibold transition"
+    >
+      {downloadLoader ? "Downloading..." : "Download"}
+    </button>
+  </div>
+
+  <button 
+    onClick={sendPaystubEmail} 
+    disabled={sendEmailLoader}
+    className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white px-4 py-3 rounded w-full cursor-pointer font-semibold transition"
+  >
+    {sendEmailLoader ? "Sending..." : "Send Email"}
   </button>
 
 </div>

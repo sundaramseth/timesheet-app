@@ -55,6 +55,10 @@ export const api = {
     return this.request("downloadPaystub", data);
   },
 
+  previewPaystub(data) {
+    return this.request("previewPaystub", data);
+  },
+
   sendPaystubEmail(data) {
     return this.request("sendPaystubEmail", data);
   },

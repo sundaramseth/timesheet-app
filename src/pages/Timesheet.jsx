@@ -212,7 +212,7 @@ async function saveTimesheet() {
     email: selectedEmp.email,
     rate: selectedEmp.rate,
     weekStart: formatDateLocal(weekDates[0]),
-    weekEnd: formatDateLocal(weekDates[6]),
+    weekEnd: formatDateLocal(weekDates[weekDates.length - 1]),
     times: manualTimes,
     notes: notesData,
     totalHours,

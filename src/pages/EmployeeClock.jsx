@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import Topbar from "../component/Topbar";
+import { calculateOvertimeBreakdown } from "../utils/overtimeCalculations";
 
 export default function EmployeeClock() {
   const [employee, setEmployee] = useState(null);
@@ -128,7 +129,9 @@ const totalHours = activeLogs.reduce(
   0
 );
 
-  const totalEarning = totalHours * (employee?.rate || 0);
+// Calculate overtime breakdown
+const overtimeData = calculateOvertimeBreakdown(totalHours, employee?.rate || 0);
+const totalEarning = overtimeData.totalPay;
 
   // ✅ BUTTON STATE LOGIC
 const lastEntry = todayLog?.entries?.[todayLog.entries.length - 1];
@@ -156,8 +159,12 @@ const isClockedOut = lastEntry?.out;
             </div>
 
             <div className="mt-3 text-sm">
-              <p><strong>Total Hours:</strong> {totalHours.toFixed(2)}</p>
-              <p><strong>Total Earnings:</strong> ${totalEarning.toFixed(2)}</p>
+              <p><strong>Total Hours:</strong> {totalHours.toFixed(2)}h</p>
+              <p><strong>Regular Hours:</strong> {overtimeData.regularHours.toFixed(2)}h</p>
+              <p><strong>Overtime Hours:</strong> <span className={overtimeData.overtimeHours > 0 ? "text-orange-600 font-bold" : ""}>{overtimeData.overtimeHours.toFixed(2)}h</span></p>
+              <p className="mt-2"><strong>Regular Pay:</strong> ${overtimeData.regularPay.toFixed(2)}</p>
+              <p><strong>Overtime Pay (1.5x):</strong> <span className={overtimeData.overtimePay > 0 ? "text-orange-600 font-bold" : ""}>${overtimeData.overtimePay.toFixed(2)}</span></p>
+              <p className="mt-2 text-lg font-bold"><strong>Total Earnings:</strong> ${totalEarning.toFixed(2)}</p>
             </div>
           </div>
 
@@ -236,10 +243,12 @@ const isClockedOut = lastEntry?.out;
               <tbody>
                 {activeLogs.map((log, i) => {
                   const hours = calculateDayHours(log);
-                  const earning = hours * (employee?.rate || 0);
+                  const dayOvertimeData = calculateOvertimeBreakdown(hours, employee?.rate || 0);
+                  const hasOvertime = dayOvertimeData.overtimeHours > 0;
+                  const rowClass = hasOvertime ? "bg-orange-50" : "";
 
                   return (
-                    <tr key={i} className="border-b text-center">
+                    <tr key={i} className={`border-b text-center ${rowClass}`}>
                       <td className="p-2 text-left">{log.date}</td>
                     <td>
                     {log.entries?.length
@@ -256,8 +265,8 @@ const isClockedOut = lastEntry?.out;
                         ))
                       : "-"}
                   </td>
-                      <td>{hours.toFixed(2)} Hr</td>
-                      <td>${earning.toFixed(2)}</td>
+                      <td className="font-semibold">{hours.toFixed(2)} Hr {hasOvertime && <span className="text-orange-600 text-xs ml-1">(OT: {dayOvertimeData.overtimeHours.toFixed(2)}h)</span>}</td>
+                      <td>${dayOvertimeData.totalPay.toFixed(2)}</td>
                     </tr>
                   );
                 })}

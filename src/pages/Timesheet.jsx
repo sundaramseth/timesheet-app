@@ -1,6 +1,13 @@
 import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import Topbar from "../component/Topbar";
+import PaystubDisplay from "../component/PaystubDisplay";
+import { 
+  calculateOvertimeBreakdown, 
+  calculatePayroll, 
+  validateNotes,
+  formatHours 
+} from "../utils/overtimeCalculations";
 
 export default function Timesheet() {
 
@@ -11,6 +18,7 @@ const [selectedEmp, setSelectedEmp] = useState(null);
 
 const [weekDates, setWeekDates] = useState([]);
 const [manualTimes, setManualTimes] = useState({});
+const [notesData, setNotesData] = useState({});
 
 const [saveTimeLoader, setSaveTimeLoader] = useState(false);
 const [downloadLoader, setDownloadLoader] = useState(false);
@@ -22,6 +30,7 @@ const [applyMedicare, setApplyMedicare] = useState(true);
 
 const [rangeStart, setRangeStart] = useState("");
 const [rangeEnd, setRangeEnd] = useState("");
+const [globalNotes, setGlobalNotes] = useState("");
 
 
 
@@ -84,7 +93,7 @@ async function loadTimes() {
 }
 
   loadTimes();
-}, [selectedEmp]);
+}, [selectedEmp, rangeStart, rangeEnd]);
 
 useEffect(() => {
   async function init() {
@@ -137,8 +146,6 @@ function addBreak(date) {
 
 /* ================= CALC ================= */
 
-
-
 function calculateDayHours(dayData) {
   if (!dayData?.entries) return 0;
 
@@ -154,11 +161,6 @@ function calculateDayHours(dayData) {
   }, 0) - ((dayData.breakMinutes || 0) / 60);
 }
 
-function formatHours(h) {
-  const hr = Math.floor(h);
-  const min = Math.round((h - hr) * 60);
-  return `${hr}h ${min}m`;
-}
 
 /* ================= TOTAL ================= */
 
@@ -167,17 +169,20 @@ const totalHours = weekDates.reduce((sum, date) => {
   return sum + calculateDayHours(manualTimes[key]);
 }, 0);
 
-const totalEarnings = totalHours * RATE;
+// Calculate overtime breakdown
+const overtimeData = calculateOvertimeBreakdown(totalHours, RATE);
+const { regularHours, overtimeHours, regularPay, overtimePay, totalPay } = overtimeData;
 
-/* ================= TAX & CALC ================= */
+/* ================= PAYROLL ================= */
 
-const subtotal = totalHours * RATE;
-
-// Tax calculations (placeholder - backend handles actual calculation)
-const socialSecurityTax = applySS ? (subtotal * 0.062).toFixed(2) : 0;
-const medicareTax = applyMedicare ? (subtotal * 0.0145).toFixed(2) : 0;
-const totalDeductions = parseFloat(socialSecurityTax) + parseFloat(medicareTax);
-const netPay = (subtotal - totalDeductions).toFixed(2);
+const payrollData = calculatePayroll(regularHours, overtimeHours, RATE, applySS, applyMedicare);
+const { 
+  subtotal, 
+  socialSecurityTax, 
+  medicareTax, 
+  totalDeductions, 
+  netPay 
+} = payrollData;
 
 /* ================= SAVE ================= */
 
@@ -197,8 +202,14 @@ async function saveTimesheet() {
     weekStart: formatDateLocal(weekDates[0]),
     weekEnd: formatDateLocal(weekDates[6]),
     times: manualTimes,
+    notes: notesData,
     totalHours,
-    totalPay: totalEarnings
+    regularHours,
+    overtimeHours,
+    totalPay,
+    regularPay,
+    overtimePay,
+    globalNotes
   });
 
   setSaveTimeLoader(false)
@@ -219,11 +230,16 @@ async function previewPaystub() {
     weekStart: rangeStart || formatDateLocal(weekDates[0]),
     weekEnd: rangeEnd || formatDateLocal(weekDates[weekDates.length - 1]),
     totalHours,
+    regularHours,
+    overtimeHours,
+    regularPay,
+    overtimePay,
     totalPay: subtotal,
     applySS,
     applyMedicare,
     filling_status: selectedEmp.filling_status,
-    dependent: selectedEmp.depend
+    dependent: selectedEmp.depend,
+    notes: globalNotes
   });
 
   if (res.url) {
@@ -249,11 +265,16 @@ async function downloadPaystub() {
     weekStart: rangeStart || formatDateLocal(weekDates[0]),
     weekEnd: rangeEnd || formatDateLocal(weekDates[weekDates.length - 1]),
     totalHours,
+    regularHours,
+    overtimeHours,
+    regularPay,
+    overtimePay,
     totalPay: subtotal,
     applySS,
     applyMedicare,
     filling_status: selectedEmp.filling_status,
-    dependent: selectedEmp.depend
+    dependent: selectedEmp.depend,
+    notes: globalNotes
   });
 
   if (res.url) window.open(res.url);
@@ -276,11 +297,16 @@ async function sendPaystubEmail() {
     weekStart: rangeStart || formatDateLocal(weekDates[0]),
     weekEnd: rangeEnd || formatDateLocal(weekDates[weekDates.length - 1]),
     totalHours,
+    regularHours,
+    overtimeHours,
+    regularPay,
+    overtimePay,
     totalPay: subtotal,
     applySS,
     applyMedicare,
     filling_status: selectedEmp.filling_status,
-    dependent: selectedEmp.depend
+    dependent: selectedEmp.depend,
+    notes: globalNotes
   });
 
   alert("Email sent!");
@@ -376,20 +402,27 @@ return (
 
   const key = formatDateLocal(date);
   const t = manualTimes[key] || { entries: [] };
+  const dayNotes = notesData[key] || "";
 
   const hours = calculateDayHours(t);
+  const dayOvertimeData = calculateOvertimeBreakdown(hours, RATE);
+  const hasOvertime = dayOvertimeData.overtimeHours > 0;
   const earnings = hours > 0 ? (hours * RATE).toFixed(2) : "0.00";
 
   const day = date.toLocaleDateString("en-US",{ weekday:"long" });
   const fullDate = date.toLocaleDateString("en-US",{ day:"numeric", month:"long" });
 
-  return (
-    <div key={key} className="bg-white rounded-xl shadow p-4 mb-4">
+  // Highlight row if has overtime
+  const bgClass = hasOvertime ? "bg-orange-50 border-l-4 border-orange-400" : "bg-white";
 
-      <div className="flex justify-between">
+  return (
+    <div key={key} className={`${bgClass} rounded-xl shadow p-4 mb-4`}>
+
+      <div className="flex justify-between items-start">
         <div>
           <h3 className="text-blue-600 font-semibold">{day}</h3>
           <p className="text-gray-500 text-sm">{fullDate}</p>
+          {hasOvertime && <p className="text-orange-600 text-xs font-semibold mt-1">⚠️ Overtime: {dayOvertimeData.overtimeHours.toFixed(2)}h</p>}
         </div>
 
         <div className="text-right">
@@ -434,6 +467,21 @@ return (
         </div>
       ))}
         
+      {/* Notes Field */}
+      <textarea
+        value={dayNotes}
+        onChange={(e) => {
+          const val = e.target.value;
+          if (validateNotes(val)) {
+            setNotesData(prev => ({
+              ...prev,
+              [key]: val
+            }));
+          }
+        }}
+        placeholder="Add notes for this day (optional)"
+        className="border p-2 rounded w-full text-sm resize-none h-16"
+      />
         
         <button
         onClick={() => {
@@ -465,70 +513,64 @@ return (
   </>
 )}
 
-<div id="paystub" className="bg-white p-6 rounded-xl shadow mt-6">
+<PaystubDisplay 
+  employeeName={selectedEmp?.name}
+  employeeEmail={selectedEmp?.email}
+  regularHours={regularHours}
+  overtimeHours={overtimeHours}
+  regularPay={regularPay}
+  overtimePay={overtimePay}
+  totalPay={totalPay}
+  socialSecurityTax={socialSecurityTax}
+  medicareTax={medicareTax}
+  totalDeductions={totalDeductions}
+  netPay={netPay}
+  notes={globalNotes}
+  weekStart={rangeStart || formatDateLocal(weekDates[0])}
+  weekEnd={rangeEnd || formatDateLocal(weekDates[weekDates.length - 1])}
+  applySS={applySS}
+  applyMedicare={applyMedicare}
+/>
 
-  <h2 className="text-xl font-bold mb-4">Paystub Summary</h2>
+{/* Global Notes Section */}
+<div className="bg-white p-6 rounded-xl shadow mt-6">
+  <h2 className="text-lg font-bold mb-4">Period Notes</h2>
+  <textarea
+    value={globalNotes}
+    onChange={(e) => {
+      const val = e.target.value;
+      if (validateNotes(val)) {
+        setGlobalNotes(val);
+      }
+    }}
+    placeholder="Add notes for this payroll period (max 500 characters)"
+    className="border p-3 rounded w-full resize-none h-24 text-sm"
+  />
+  <p className="text-xs text-gray-500 mt-2">{globalNotes.length}/500 characters</p>
+</div>
 
-  {/* Employee Info */}
-  <div className="mb-4 pb-4 border-b">
-    <p><b>Name:</b> {selectedEmp?.name}</p>
-    <p><b>Email:</b> {selectedEmp?.email}</p>
-  </div>
+{/* Tax Controls */}
+<div className="bg-white p-6 rounded-xl shadow mt-6">
+  <h2 className="text-lg font-bold mb-4">Tax Settings</h2>
+  <label className="flex items-center gap-2 mb-3 cursor-pointer">
+    <input
+      type="checkbox"
+      checked={applySS}
+      onChange={(e) => setApplySS(e.target.checked)}
+      className="w-4 h-4 cursor-pointer"
+    />
+    <span className="flex-1">Apply Social Security Tax (6.2%)</span>
+  </label>
 
-  {/* Hours & Rate Section */}
-  <div className="mb-4 pb-4 border-b">
-    <h3 className="font-semibold text-blue-600 mb-2">Earnings</h3>
-    <div className="grid grid-cols-2 gap-4">
-      <div>
-        <p className="text-gray-600 text-sm">Total Hours</p>
-        <p className="text-lg font-bold">{formatHours(totalHours)}</p>
-      </div>
-      <div>
-        <p className="text-gray-600 text-sm">Hourly Rate</p>
-        <p className="text-lg font-bold">${RATE.toFixed(2)}/hr</p>
-      </div>
-    </div>
-  </div>
-
-  {/* Subtotal */}
-  <div className="mb-4 pb-4 border-b bg-blue-50 p-3 rounded">
-    <p className="text-gray-600 text-sm">Subtotal</p>
-    <p className="text-2xl font-bold text-blue-600">${subtotal.toFixed(2)}</p>
-  </div>
-
-  {/* Taxes Section */}
-  <div className="mb-4 pb-4 border-b">
-    <h3 className="font-semibold text-blue-600 mb-3">Deductions</h3>
-    
-    <label className="flex items-center gap-2 mb-3 cursor-pointer">
-      <input
-        type="checkbox"
-        checked={applySS}
-        onChange={(e) => setApplySS(e.target.checked)}
-        className="w-4 h-4 cursor-pointer"
-      />
-      <span className="flex-1">Social Security (6.2%)</span>
-      <span className="font-semibold">${socialSecurityTax}</span>
-    </label>
-
-    <label className="flex items-center gap-2 cursor-pointer">
-      <input
-        type="checkbox"
-        checked={applyMedicare}
-        onChange={(e) => setApplyMedicare(e.target.checked)}
-        className="w-4 h-4 cursor-pointer"
-      />
-      <span className="flex-1">Medicare (1.45%)</span>
-      <span className="font-semibold">${medicareTax}</span>
-    </label>
-  </div>
-
-  {/* Net Pay */}
-  <div className="bg-green-50 p-3 rounded">
-    <p className="text-gray-600 text-sm">Net Pay</p>
-    <p className="text-3xl font-bold text-green-600">${netPay}</p>
-  </div>
-
+  <label className="flex items-center gap-2 cursor-pointer">
+    <input
+      type="checkbox"
+      checked={applyMedicare}
+      onChange={(e) => setApplyMedicare(e.target.checked)}
+      className="w-4 h-4 cursor-pointer"
+    />
+    <span className="flex-1">Apply Medicare Tax (1.45%)</span>
+  </label>
 </div>
 
 <div className="flex flex-col gap-3 mt-6">

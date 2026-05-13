@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import Topbar from '../component/Topbar';
 import { api } from '../services/api';
+import { calculateOvertimeBreakdown } from '../utils/overtimeCalculations';
 
 function HistoryAllEmployee() {
   const [employees, setEmployees] = useState([]);
@@ -14,6 +15,10 @@ function HistoryAllEmployee() {
   const [endDate, setEndDate] = useState('');
   const [totalHours, setTotalHours] = useState(0);
   const [totalEarnings, setTotalEarnings] = useState(0);
+  const [regularHours, setRegularHours] = useState(0);
+  const [overtimeHours, setOvertimeHours] = useState(0);
+  const [regularPay, setRegularPay] = useState(0);
+  const [overtimePay, setOvertimePay] = useState(0);
 
   const loadEmployees = async () => {
     try {
@@ -39,15 +44,17 @@ function HistoryAllEmployee() {
       if (res?.times) {
         const history = [];
         let totalH = 0;
+        
         Object.keys(res.times).forEach(date => {
           const dayData = res.times[date];
+          
           if (dayData?.entries) {
             dayData.entries.forEach(entry => {
               if (entry.in && entry.out) {
                 const start = new Date(`2024-01-01T${entry.in}`);
                 let end = new Date(`2024-01-01T${entry.out}`);
                 if (end < start) end.setDate(end.getDate() + 1);
-                const hours = (end - start) / (1000 * 60 * 60) - ((dayData.breakMinutes || 0) / 60) / dayData.entries.length; // approximate break per entry
+                const hours = (end - start) / (1000 * 60 * 60) - ((dayData.breakMinutes || 0) / 60) / dayData.entries.length;
                 totalH += hours;
                 const earnings = hours * parseFloat(selectedEmployee.rate);
                 history.push({
@@ -55,16 +62,26 @@ function HistoryAllEmployee() {
                   in: entry.in,
                   out: entry.out,
                   hours,
-                  earnings
+                  earnings,
+                  notes: dayData?.notes || ''
                 });
               }
             });
           }
         });
+        
+        // Calculate overtime breakdown
+        const rate = parseFloat(selectedEmployee.rate);
+        const overtimeData = calculateOvertimeBreakdown(totalH, rate);
+        
         console.log('Processed history:', history);
         setHistoryData(history);
         setTotalHours(totalH);
-        setTotalEarnings(totalH * parseFloat(selectedEmployee.rate));
+        setTotalEarnings(totalH * rate);
+        setRegularHours(overtimeData.regularHours);
+        setOvertimeHours(overtimeData.overtimeHours);
+        setRegularPay(overtimeData.regularPay);
+        setOvertimePay(overtimeData.overtimePay);
       } else {
         console.log('No times data in response');
       }
@@ -100,6 +117,10 @@ function HistoryAllEmployee() {
       setFilteredHistory([]);
       setTotalHours(0);
       setTotalEarnings(0);
+      setRegularHours(0);
+      setOvertimeHours(0);
+      setRegularPay(0);
+      setOvertimePay(0);
     }
   }, [selectedEmployee, loadHistory]);
 
@@ -164,11 +185,43 @@ function HistoryAllEmployee() {
             </div>
 
             {/* Employee Info */}
-            <div className="bg-white p-4 rounded-xl shadow mb-6">
-              <h2 className="text-lg font-bold mb-2">{selectedEmployee.name}</h2>
-              <p className="text-gray-500 mb-1">Rate: ${selectedEmployee.rate}/hr</p>
-              <p className="text-gray-500 mb-1">Total Hours: {totalHours.toFixed(2)}</p>
-              <p className="text-gray-500 mb-1">Total Earnings: ${totalEarnings.toFixed(2)}</p>
+            <div className="bg-white p-6 rounded-xl shadow mb-6">
+              <h2 className="text-lg font-bold mb-4">{selectedEmployee.name}</h2>
+              <p className="text-gray-600 mb-1"><b>Rate:</b> ${selectedEmployee.rate}/hr</p>
+              
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                <div className="bg-blue-50 p-3 rounded">
+                  <p className="text-xs text-gray-600">Total Hours</p>
+                  <p className="text-lg font-bold text-blue-600">{totalHours.toFixed(2)}h</p>
+                </div>
+                <div className="bg-blue-50 p-3 rounded">
+                  <p className="text-xs text-gray-600">Regular Hours</p>
+                  <p className="text-lg font-bold text-blue-600">{regularHours.toFixed(2)}h</p>
+                </div>
+                <div className="bg-orange-50 p-3 rounded border-l-4 border-orange-400">
+                  <p className="text-xs text-gray-600">Overtime Hours</p>
+                  <p className="text-lg font-bold text-orange-600">{overtimeHours.toFixed(2)}h</p>
+                </div>
+                <div className="bg-green-50 p-3 rounded">
+                  <p className="text-xs text-gray-600">Total Earnings</p>
+                  <p className="text-lg font-bold text-green-600">${totalEarnings.toFixed(2)}</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                <div className="bg-gray-50 p-3 rounded">
+                  <p className="text-xs text-gray-600">Regular Pay</p>
+                  <p className="text-lg font-bold">${regularPay.toFixed(2)}</p>
+                </div>
+                <div className="bg-orange-50 p-3 rounded">
+                  <p className="text-xs text-gray-600">Overtime Pay (1.5x)</p>
+                  <p className="text-lg font-bold text-orange-600">${overtimePay.toFixed(2)}</p>
+                </div>
+                <div className="bg-green-50 p-3 rounded">
+                  <p className="text-xs text-gray-600">Gross Pay</p>
+                  <p className="text-lg font-bold text-green-600">${(regularPay + overtimePay).toFixed(2)}</p>
+                </div>
+              </div>
             </div>
 
             {/* History Table */}
@@ -178,28 +231,50 @@ function HistoryAllEmployee() {
                 <p>Loading...</p>
               ) : (
                 <>
-                  <table className="w-full table-auto">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-2">Date</th>
-                        <th className="text-left p-2">Clock In</th>
-                        <th className="text-left p-2">Clock Out</th>
-                        <th className="text-left p-2">Hours</th>
-                        <th className="text-left p-2">Earnings</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedHistory.map((item, index) => (
-                        <tr key={index} className="border-b">
-                          <td className="p-2">{item.date}</td>
-                          <td className="p-2">{item.in}</td>
-                          <td className="p-2">{item.out}</td>
-                          <td className="p-2">{item.hours.toFixed(2)}</td>
-                          <td className="p-2">${item.earnings.toFixed(2)}</td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full table-auto">
+                      <thead>
+                        <tr className="border-b bg-gray-50">
+                          <th className="text-left p-2 text-sm">Date</th>
+                          <th className="text-left p-2 text-sm">Clock In</th>
+                          <th className="text-left p-2 text-sm">Clock Out</th>
+                          <th className="text-left p-2 text-sm">Hours</th>
+                          <th className="text-left p-2 text-sm">Status</th>
+                          <th className="text-left p-2 text-sm">Earnings</th>
+                          <th className="text-left p-2 text-sm">Notes</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {paginatedHistory.map((item, index) => {
+                          const overtimeData = calculateOvertimeBreakdown(item.hours, parseFloat(selectedEmployee.rate));
+                          const isOvertime = overtimeData.overtimeHours > 0;
+                          const rowClass = isOvertime ? 'bg-orange-50 border-l-4 border-orange-400' : '';
+                          
+                          return (
+                            <tr key={index} className={`border-b ${rowClass}`}>
+                              <td className="p-2 text-sm">{item.date}</td>
+                              <td className="p-2 text-sm">{item.in}</td>
+                              <td className="p-2 text-sm">{item.out}</td>
+                              <td className="p-2 text-sm font-semibold">{item.hours.toFixed(2)}h</td>
+                              <td className="p-2 text-sm">
+                                {isOvertime ? (
+                                  <span className="bg-orange-200 text-orange-800 px-2 py-1 rounded text-xs font-semibold">
+                                    ⚠️ Overtime: {overtimeData.overtimeHours.toFixed(2)}h
+                                  </span>
+                                ) : (
+                                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Regular</span>
+                                )}
+                              </td>
+                              <td className="p-2 text-sm font-semibold">${item.earnings.toFixed(2)}</td>
+                              <td className="p-2 text-sm text-gray-600 max-w-xs truncate" title={item.notes}>
+                                {item.notes || '-'}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
 
                   {/* Pagination */}
                   <div className="flex justify-between items-center mt-4">

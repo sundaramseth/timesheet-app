@@ -70,25 +70,37 @@ useEffect(() => {
   if (!selectedEmp) return;
 
 async function loadTimes() {
+
   const res = await api.getEmployeeTimesheet({
     employeeId: selectedEmp.id
   });
 
-  if (res?.times) {
+  if (res) {
 
-    // ✅ FILTER BASED ON RANGE (if selected)
     let filtered = {};
 
     if (rangeStart && rangeEnd) {
-      Object.keys(res.times).forEach(date => {
+
+      Object.keys(res.times || {}).forEach(date => {
+
         if (date >= rangeStart && date <= rangeEnd) {
           filtered[date] = res.times[date];
         }
+
       });
+
       setManualTimes(filtered);
+
     } else {
-      setManualTimes(res.times);
+
+      setManualTimes(res.times || {});
     }
+
+    // RESTORE NOTES
+    setGlobalNotes(res.globalNotes || "");
+
+    // RESTORE DAY NOTES
+    setNotesData(res.notes || {});
   }
 }
 

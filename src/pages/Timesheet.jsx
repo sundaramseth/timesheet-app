@@ -239,7 +239,7 @@ async function previewPaystub() {
     applyMedicare,
     filling_status: selectedEmp.filling_status,
     dependent: selectedEmp.depend,
-    notes: globalNotes
+    globalNotes: globalNotes
   });
 
   if (res.url) {
@@ -274,7 +274,7 @@ async function downloadPaystub() {
     applyMedicare,
     filling_status: selectedEmp.filling_status,
     dependent: selectedEmp.depend,
-    notes: globalNotes
+    globalNotes: globalNotes
   });
 
   if (res.url) window.open(res.url);
@@ -306,7 +306,7 @@ async function sendPaystubEmail() {
     applyMedicare,
     filling_status: selectedEmp.filling_status,
     dependent: selectedEmp.depend,
-    notes: globalNotes
+    globalNotes: globalNotes
   });
 
   alert("Email sent!");

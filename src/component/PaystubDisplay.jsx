@@ -10,13 +10,15 @@ export default function PaystubDisplay({
   totalPay,
   socialSecurityTax,
   medicareTax,
+  federalTax,
   totalDeductions,
   netPay,
   notes,
   weekStart,
   weekEnd,
   applySS,
-  applyMedicare
+  applyMedicare,
+  applyFederalTax
 }) {
   return (
     <div id="paystub" className="bg-white p-6 rounded-xl shadow">
@@ -68,7 +70,7 @@ export default function PaystubDisplay({
       </div>
 
       {/* Deductions */}
-      {(applySS || applyMedicare) && (
+      {(applySS || applyMedicare || applyFederalTax) && (
         <div className="mb-4 pb-4 border-b">
           <h3 className="font-semibold text-blue-600 mb-3">Deductions</h3>
           <div className="space-y-2">
@@ -82,6 +84,12 @@ export default function PaystubDisplay({
               <div className="flex justify-between items-center">
                 <span className="text-gray-700">Medicare Tax (1.45%):</span>
                 <span className="font-semibold">${medicareTax.toFixed(2)}</span>
+              </div>
+            )}
+            {applyFederalTax && federalTax > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-gray-700">Federal Withholding:</span>
+                <span className="font-semibold">${federalTax.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between items-center font-semibold text-lg">

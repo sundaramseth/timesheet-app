@@ -22,14 +22,15 @@ export const calculateOvertimeBreakdown = (totalHours, hourlyRate) => {
   };
 };
 
-export const calculatePayroll = (regularHours, overtimeHours, hourlyRate, applySS, applyMedicare) => {
+export const calculatePayroll = (regularHours, overtimeHours, hourlyRate, applySS, applyMedicare, applyFederalTax = false, federalTaxPercent = 0) => {
   const regularPay = regularHours * hourlyRate;
   const overtimePay = overtimeHours * hourlyRate * 1.5;
   const subtotal = regularPay + overtimePay;
   
   const socialSecurityTax = applySS ? (subtotal * 0.062).toFixed(2) : 0;
   const medicareTax = applyMedicare ? (subtotal * 0.0145).toFixed(2) : 0;
-  const totalDeductions = parseFloat(socialSecurityTax) + parseFloat(medicareTax);
+  const federalTax = applyFederalTax ? (subtotal * (federalTaxPercent / 100)).toFixed(2) : 0;
+  const totalDeductions = parseFloat(socialSecurityTax) + parseFloat(medicareTax) + parseFloat(federalTax);
   const netPay = (subtotal - totalDeductions).toFixed(2);
   
   return {
@@ -38,6 +39,7 @@ export const calculatePayroll = (regularHours, overtimeHours, hourlyRate, applyS
     subtotal: parseFloat(subtotal.toFixed(2)),
     socialSecurityTax: parseFloat(socialSecurityTax),
     medicareTax: parseFloat(medicareTax),
+    federalTax: parseFloat(federalTax),
     totalDeductions: parseFloat(totalDeductions.toFixed(2)),
     netPay: parseFloat(netPay)
   };

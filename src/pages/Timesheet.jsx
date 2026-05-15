@@ -27,6 +27,8 @@ const [sendEmailLoader, setSendEmailLoader] = useState(false);
 
 const [applySS, setApplySS] = useState(true);
 const [applyMedicare, setApplyMedicare] = useState(true);
+const [applyFederalTax, setApplyFederalTax] = useState(false);
+const [federalTaxPercent, setFederalTaxPercent] = useState(10);
 
 const [rangeStart, setRangeStart] = useState("");
 const [rangeEnd, setRangeEnd] = useState("");
@@ -187,11 +189,12 @@ const { regularHours, overtimeHours, regularPay, overtimePay, totalPay } = overt
 
 /* ================= PAYROLL ================= */
 
-const payrollData = calculatePayroll(regularHours, overtimeHours, RATE, applySS, applyMedicare);
+const payrollData = calculatePayroll(regularHours, overtimeHours, RATE, applySS, applyMedicare, applyFederalTax, federalTaxPercent);
 const { 
   subtotal, 
   socialSecurityTax, 
   medicareTax, 
+  federalTax,
   totalDeductions, 
   netPay 
 } = payrollData;
@@ -249,6 +252,8 @@ async function previewPaystub() {
     totalPay: subtotal,
     applySS,
     applyMedicare,
+    applyFederalTax,
+    federalTaxPercent,
     filling_status: selectedEmp.filling_status,
     dependent: selectedEmp.depend,
     globalNotes: globalNotes
@@ -284,6 +289,8 @@ async function downloadPaystub() {
     totalPay: subtotal,
     applySS,
     applyMedicare,
+    applyFederalTax,
+    federalTaxPercent,
     filling_status: selectedEmp.filling_status,
     dependent: selectedEmp.depend,
     globalNotes: globalNotes
@@ -316,6 +323,8 @@ async function sendPaystubEmail() {
     totalPay: subtotal,
     applySS,
     applyMedicare,
+    applyFederalTax,
+    federalTaxPercent,
     filling_status: selectedEmp.filling_status,
     dependent: selectedEmp.depend,
     globalNotes: globalNotes
@@ -535,6 +544,7 @@ return (
   totalPay={totalPay}
   socialSecurityTax={socialSecurityTax}
   medicareTax={medicareTax}
+  federalTax={federalTax}
   totalDeductions={totalDeductions}
   netPay={netPay}
   notes={globalNotes}
@@ -542,6 +552,7 @@ return (
   weekEnd={rangeEnd || formatDateLocal(weekDates[weekDates.length - 1])}
   applySS={applySS}
   applyMedicare={applyMedicare}
+  applyFederalTax={applyFederalTax}
 />
 
 {/* Global Notes Section */}
@@ -574,7 +585,7 @@ return (
     <span className="flex-1">Apply Social Security Tax (6.2%)</span>
   </label>
 
-  <label className="flex items-center gap-2 cursor-pointer">
+  <label className="flex items-center gap-2 mb-3 cursor-pointer">
     <input
       type="checkbox"
       checked={applyMedicare}
@@ -583,6 +594,31 @@ return (
     />
     <span className="flex-1">Apply Medicare Tax (1.45%)</span>
   </label>
+
+  <div className="flex flex-row items-center gap-3">
+    <label className="flex items-center gap-2 cursor-pointer flex-1">
+      <input
+        type="checkbox"
+        id="applyFederalTax"
+        checked={applyFederalTax}
+        onChange={(e) => setApplyFederalTax(e.target.checked)}
+        className="w-4 h-4 cursor-pointer"
+      />
+      <span>Apply Federal Withholding</span>
+    </label>
+    <input
+      type="number"
+      id="federalTaxPercent"
+      placeholder="Enter %"
+      value={federalTaxPercent}
+      onChange={(e) => setFederalTaxPercent(parseFloat(e.target.value) || 0)}
+      disabled={!applyFederalTax}
+      step="0.1"
+      min="0"
+      className="border p-2 rounded w-24 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
+    />
+    <span className="text-sm text-gray-600">%</span>
+  </div>
 </div>
 
 <div className="flex flex-col gap-3 mt-6">

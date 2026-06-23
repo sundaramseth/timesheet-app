@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import Topbar from '../component/Topbar';
-import { api } from '../services/api';
-import { calculateOvertimeBreakdown } from '../utils/overtimeCalculations';
+import React, { useEffect, useState, useCallback } from "react";
+import Topbar from "../component/Topbar";
+import { api } from "../services/api";
+import { calculateOvertimeBreakdown } from "../utils/overtimeCalculations";
 
 function HistoryAllEmployee() {
   const [employees, setEmployees] = useState([]);
@@ -11,50 +11,56 @@ function HistoryAllEmployee() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [totalHours, setTotalHours] = useState(0);
   const [totalEarnings, setTotalEarnings] = useState(0);
   const [regularHours, setRegularHours] = useState(0);
   const [overtimeHours, setOvertimeHours] = useState(0);
   const [regularPay, setRegularPay] = useState(0);
   const [overtimePay, setOvertimePay] = useState(0);
+  const [ytdData, setYtdData] = useState(null);
+  const [ytdloading, setYtdLoading] = useState(false);
 
   const loadEmployees = async () => {
     try {
       const data = await api.getEmployees();
-      console.log('Loaded employees:', data);
+      console.log("Loaded employees:", data);
       if (Array.isArray(data)) {
         setEmployees(data);
       } else {
-        console.error('Employees data is not an array:', data);
+        console.error("Employees data is not an array:", data);
         setEmployees([]);
       }
     } catch (err) {
-      console.error('Error loading employees:', err);
+      console.error("Error loading employees:", err);
     }
   };
 
   const loadHistory = useCallback(async () => {
-    console.log('Loading history for employee:', selectedEmployee);
+    console.log("Loading history for employee:", selectedEmployee);
     setLoading(true);
     try {
-      const res = await api.getEmployeeTimesheet({ employeeId: selectedEmployee.id });
-      console.log('API response:', res);
+      const res = await api.getEmployeeTimesheet({
+        employeeId: selectedEmployee.id,
+      });
+      console.log("API response:", res);
       if (res?.times) {
         const history = [];
         let totalH = 0;
-        
-        Object.keys(res.times).forEach(date => {
+
+        Object.keys(res.times).forEach((date) => {
           const dayData = res.times[date];
-          
+
           if (dayData?.entries) {
-            dayData.entries.forEach(entry => {
+            dayData.entries.forEach((entry) => {
               if (entry.in && entry.out) {
                 const start = new Date(`2024-01-01T${entry.in}`);
                 let end = new Date(`2024-01-01T${entry.out}`);
                 if (end < start) end.setDate(end.getDate() + 1);
-                const hours = (end - start) / (1000 * 60 * 60) - ((dayData.breakMinutes || 0) / 60) / dayData.entries.length;
+                const hours =
+                  (end - start) / (1000 * 60 * 60) -
+                  (dayData.breakMinutes || 0) / 60 / dayData.entries.length;
                 totalH += hours;
                 const earnings = hours * parseFloat(selectedEmployee.rate);
                 history.push({
@@ -63,18 +69,18 @@ function HistoryAllEmployee() {
                   out: entry.out,
                   hours,
                   earnings,
-                  notes: dayData?.notes || ''
+                  notes: dayData?.notes || "",
                 });
               }
             });
           }
         });
-        
+
         // Calculate overtime breakdown
         const rate = parseFloat(selectedEmployee.rate);
         const overtimeData = calculateOvertimeBreakdown(totalH, rate);
-        
-        console.log('Processed history:', history);
+
+        console.log("Processed history:", history);
         setHistoryData(history);
         setTotalHours(totalH);
         setTotalEarnings(totalH * rate);
@@ -83,10 +89,10 @@ function HistoryAllEmployee() {
         setRegularPay(overtimeData.regularPay);
         setOvertimePay(overtimeData.overtimePay);
       } else {
-        console.log('No times data in response');
+        console.log("No times data in response");
       }
     } catch (err) {
-      console.error('Error loading history:', err);
+      console.error("Error loading history:", err);
     } finally {
       setLoading(false);
     }
@@ -95,10 +101,10 @@ function HistoryAllEmployee() {
   const filterHistory = useCallback(() => {
     let filtered = historyData;
     if (startDate) {
-      filtered = filtered.filter(item => item.date >= startDate);
+      filtered = filtered.filter((item) => item.date >= startDate);
     }
     if (endDate) {
-      filtered = filtered.filter(item => item.date <= endDate);
+      filtered = filtered.filter((item) => item.date <= endDate);
     }
     setFilteredHistory(filtered);
     setPage(1);
@@ -109,7 +115,7 @@ function HistoryAllEmployee() {
   }, []);
 
   useEffect(() => {
-    console.log('Selected employee changed:', selectedEmployee);
+    console.log("Selected employee changed:", selectedEmployee);
     if (selectedEmployee) {
       loadHistory();
     } else {
@@ -128,8 +134,147 @@ function HistoryAllEmployee() {
     filterHistory();
   }, [historyData, startDate, endDate, filterHistory]);
 
-  const paginatedHistory = filteredHistory.slice((page - 1) * pageSize, page * pageSize);
+  const paginatedHistory = filteredHistory.slice(
+    (page - 1) * pageSize,
+    page * pageSize,
+  );
   const totalPages = Math.ceil(filteredHistory.length / pageSize);
+
+  const generateYTD = () => {
+    let filtered = historyData;
+
+    if (startDate) {
+      filtered = filtered.filter((item) => item.date >= startDate);
+    }
+
+    if (endDate) {
+      filtered = filtered.filter((item) => item.date <= endDate);
+    }
+
+    const totalHours = filtered.reduce((sum, item) => sum + item.hours, 0);
+
+    const rate = parseFloat(selectedEmployee.rate);
+
+    const overtime = calculateOvertimeBreakdown(totalHours, rate);
+
+    const gross = overtime.regularPay + overtime.overtimePay;
+
+    const ss = gross * 0.062;
+
+    const medicare = gross * 0.0145;
+
+    const deductions = ss + medicare;
+
+    const net = gross - deductions;
+
+    setYtdData({
+      totalHours,
+      regularHours: overtime.regularHours,
+      overtimeHours: overtime.overtimeHours,
+      regularPay: overtime.regularPay,
+      overtimePay: overtime.overtimePay,
+      gross,
+      ss,
+      medicare,
+      deductions,
+      net,
+    });
+  };
+
+  const previewYTD = async () => {
+
+  setYtdLoading(true);  
+
+  let filtered = historyData;
+
+  if (startDate) {
+    filtered = filtered.filter(
+      item => item.date >= startDate
+    );
+  }
+
+  if (endDate) {
+    filtered = filtered.filter(
+      item => item.date <= endDate
+    );
+  }
+
+  const totalHours = filtered.reduce(
+    (sum, item) => sum + item.hours,
+    0
+  );
+
+  const rate = parseFloat(selectedEmployee.rate);
+
+  const overtimeData =
+    calculateOvertimeBreakdown(
+      totalHours,
+      rate
+    );
+
+  const payload = {
+
+    name: selectedEmployee.name,
+    email: selectedEmployee.email,
+    rate: rate,
+
+    weekStart: startDate,
+    weekEnd: endDate,
+
+    totalHours,
+
+    regularHours:
+      overtimeData.regularHours,
+
+    overtimeHours:
+      overtimeData.overtimeHours,
+
+    regularPay:
+      overtimeData.regularPay,
+
+    overtimePay:
+      overtimeData.overtimePay,
+
+    globalNotes:
+      `YTD Report (${startDate} - ${endDate})`,
+
+    filling_status:
+      selectedEmployee.filling_status,
+
+    depend:
+      selectedEmployee.depend,
+
+    applySS: true,
+    applyMedicare: true,
+
+    applyFederalTax: false,
+    federalTaxPercent: 0
+  };
+
+  try {
+
+   const newTab = window.open("", "_blank");
+
+const result = await api.previewPaystub(payload);
+
+if(result?.url){
+   newTab.location.href = result.url;
+}
+
+    setYtdLoading(false);
+
+  } catch (err) {
+
+    console.error(
+      "Preview failed",
+      err
+    );
+
+    alert(
+      "Unable to generate preview"
+    );
+  }
+};
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -142,18 +287,24 @@ function HistoryAllEmployee() {
 
         {/* Employee Selector */}
         <div className="bg-white p-4 rounded-xl shadow mb-6">
-          <label className="block text-sm font-medium mb-2">Select Employee</label>
+          <label className="block text-sm font-medium mb-2">
+            Select Employee
+          </label>
           <select
-            value={selectedEmployee?.id || ''}
+            value={selectedEmployee?.id || ""}
             onChange={(e) => {
-              const emp = employees.find(emp => String(emp.id) === e.target.value);
+              const emp = employees.find(
+                (emp) => String(emp.id) === e.target.value,
+              );
               setSelectedEmployee(emp);
             }}
             className="w-full p-2 border rounded"
           >
             <option value="">Select an employee</option>
-            {employees.map(emp => (
-              <option key={emp.id} value={emp.id}>{emp.name}</option>
+            {employees.map((emp) => (
+              <option key={emp.id} value={emp.id}>
+                {emp.name}
+              </option>
             ))}
           </select>
         </div>
@@ -164,7 +315,9 @@ function HistoryAllEmployee() {
             <div className="bg-white p-4 rounded-xl shadow mb-6">
               <div className="flex gap-4">
                 <div>
-                  <label className="block text-sm font-medium mb-2">Start Date</label>
+                  <label className="block text-sm font-medium mb-2">
+                    Start Date
+                  </label>
                   <input
                     type="date"
                     value={startDate}
@@ -173,7 +326,9 @@ function HistoryAllEmployee() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium mb-2">End Date</label>
+                  <label className="block text-sm font-medium mb-2">
+                    End Date
+                  </label>
                   <input
                     type="date"
                     value={endDate}
@@ -182,32 +337,53 @@ function HistoryAllEmployee() {
                   />
                 </div>
               </div>
+
+              <div className="mt-4 ">
+                <button
+                  onClick={generateYTD}
+                  className="px-4 py-2 bg-green-600 text-white rounded cursor-pointer hover:bg-green-700"
+                >
+                  Generate YTD
+                </button>
+              </div>
             </div>
 
             {/* Employee Info */}
             <div className="bg-white p-6 rounded-xl shadow mb-6">
-              <h2 className="text-lg font-bold mb-4">{selectedEmployee.name}</h2>
-              <p className="text-gray-600 mb-1"><b>Rate:</b> ${selectedEmployee.rate}/hr</p>
-              
+              <h2 className="text-lg font-bold mb-4">
+                {selectedEmployee.name}
+              </h2>
+              <p className="text-gray-600 mb-1">
+                <b>Rate:</b> ${selectedEmployee.rate}/hr
+              </p>
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
                 <div className="bg-blue-50 p-3 rounded">
                   <p className="text-xs text-gray-600">Total Hours</p>
-                  <p className="text-lg font-bold text-blue-600">{totalHours.toFixed(2)}h</p>
+                  <p className="text-lg font-bold text-blue-600">
+                    {totalHours.toFixed(2)}h
+                  </p>
                 </div>
                 <div className="bg-blue-50 p-3 rounded">
                   <p className="text-xs text-gray-600">Regular Hours</p>
-                  <p className="text-lg font-bold text-blue-600">{regularHours.toFixed(2)}h</p>
+                  <p className="text-lg font-bold text-blue-600">
+                    {regularHours.toFixed(2)}h
+                  </p>
                 </div>
                 <div className="bg-orange-50 p-3 rounded border-l-4 border-orange-400">
                   <p className="text-xs text-gray-600">Overtime Hours</p>
-                  <p className="text-lg font-bold text-orange-600">{overtimeHours.toFixed(2)}h</p>
+                  <p className="text-lg font-bold text-orange-600">
+                    {overtimeHours.toFixed(2)}h
+                  </p>
                 </div>
                 <div className="bg-green-50 p-3 rounded">
                   <p className="text-xs text-gray-600">Total Earnings</p>
-                  <p className="text-lg font-bold text-green-600">${totalEarnings.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-green-600">
+                    ${totalEarnings.toFixed(2)}
+                  </p>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
                 <div className="bg-gray-50 p-3 rounded">
                   <p className="text-xs text-gray-600">Regular Pay</p>
@@ -215,14 +391,67 @@ function HistoryAllEmployee() {
                 </div>
                 <div className="bg-orange-50 p-3 rounded">
                   <p className="text-xs text-gray-600">Overtime Pay (1.5x)</p>
-                  <p className="text-lg font-bold text-orange-600">${overtimePay.toFixed(2)}</p>
+                  <p className="text-lg font-bold text-orange-600">
+                    ${overtimePay.toFixed(2)}
+                  </p>
                 </div>
                 <div className="bg-green-50 p-3 rounded">
                   <p className="text-xs text-gray-600">Gross Pay</p>
-                  <p className="text-lg font-bold text-green-600">${(regularPay + overtimePay).toFixed(2)}</p>
+                  <p className="text-lg font-bold text-green-600">
+                    ${(regularPay + overtimePay).toFixed(2)}
+                  </p>
                 </div>
               </div>
             </div>
+
+            {/* ytd */}
+            {ytdData && (
+              <div className="bg-green-50 p-6 rounded-xl shadow mb-6">
+                <h2 className="font-bold text-xl mb-4">YTD Payroll Summary</h2>
+
+                <p className="mb-2 flex items-center gap-2">
+                  <b>Total Hours:</b>
+                  {ytdData.totalHours.toFixed(2)}
+                </p>
+
+                <p className="mb-2 flex items-center gap-2">
+                  <b>Regular Hours:</b>
+                  {ytdData.regularHours.toFixed(2)}
+                </p>
+
+                <p className="mb-2 flex items-center gap-2">
+                  <b>Overtime Hours:</b>
+                  {ytdData.overtimeHours.toFixed(2)}
+                </p>
+
+                <p className="mb-2 flex items-center gap-2" >
+                  <b>Gross Pay:</b> ${ytdData.gross.toFixed(2)}
+                </p>
+
+                <p className="mb-2 flex items-center gap-2">
+                  <b>Social Security:</b> ${ytdData.ss.toFixed(2)}
+                </p>
+
+                <p className="mb-2 flex items-center gap-2">
+                  <b>Medicare:</b> ${ytdData.medicare.toFixed(2)}
+                </p>
+
+                <p className="mb-2 flex items-center gap-2" >
+                  <b>Net Pay:</b> ${ytdData.net.toFixed(2)}
+                </p>
+                <br/>
+              <button
+              onClick={previewYTD}
+              className="bg-green-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-green-700"
+            >
+              {ytdloading ? (
+                <span>Generating...</span>
+              ) : (
+                "Generate YTD Preview"
+              )}
+            </button>
+              </div>
+            )}
 
             {/* History Table */}
             <div className="bg-white p-4 rounded-xl shadow">
@@ -246,28 +475,43 @@ function HistoryAllEmployee() {
                       </thead>
                       <tbody>
                         {paginatedHistory.map((item, index) => {
-                          const overtimeData = calculateOvertimeBreakdown(item.hours, parseFloat(selectedEmployee.rate));
+                          const overtimeData = calculateOvertimeBreakdown(
+                            item.hours,
+                            parseFloat(selectedEmployee.rate),
+                          );
                           const isOvertime = overtimeData.overtimeHours > 0;
-                          const rowClass = isOvertime ? 'bg-orange-50 border-l-4 border-orange-400' : '';
-                          
+                          const rowClass = isOvertime
+                            ? "bg-orange-50 border-l-4 border-orange-400"
+                            : "";
+
                           return (
                             <tr key={index} className={`border-b ${rowClass}`}>
                               <td className="p-2 text-sm">{item.date}</td>
                               <td className="p-2 text-sm">{item.in}</td>
                               <td className="p-2 text-sm">{item.out}</td>
-                              <td className="p-2 text-sm font-semibold">{item.hours.toFixed(2)}h</td>
+                              <td className="p-2 text-sm font-semibold">
+                                {item.hours.toFixed(2)}h
+                              </td>
                               <td className="p-2 text-sm">
                                 {isOvertime ? (
                                   <span className="bg-orange-200 text-orange-800 px-2 py-1 rounded text-xs font-semibold">
-                                    ⚠️ Overtime: {overtimeData.overtimeHours.toFixed(2)}h
+                                    ⚠️ Overtime:{" "}
+                                    {overtimeData.overtimeHours.toFixed(2)}h
                                   </span>
                                 ) : (
-                                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">Regular</span>
+                                  <span className="bg-green-100 text-green-800 px-2 py-1 rounded text-xs">
+                                    Regular
+                                  </span>
                                 )}
                               </td>
-                              <td className="p-2 text-sm font-semibold">${item.earnings.toFixed(2)}</td>
-                              <td className="p-2 text-sm text-gray-600 max-w-xs truncate" title={item.notes}>
-                                {item.notes || '-'}
+                              <td className="p-2 text-sm font-semibold">
+                                ${item.earnings.toFixed(2)}
+                              </td>
+                              <td
+                                className="p-2 text-sm text-gray-600 max-w-xs truncate"
+                                title={item.notes}
+                              >
+                                {item.notes || "-"}
                               </td>
                             </tr>
                           );
@@ -285,7 +529,9 @@ function HistoryAllEmployee() {
                     >
                       Previous
                     </button>
-                    <span>Page {page} of {totalPages}</span>
+                    <span>
+                      Page {page} of {totalPages}
+                    </span>
                     <button
                       onClick={() => setPage(page + 1)}
                       disabled={page === totalPages}

@@ -73,5 +73,8 @@ clockOut(data) {
 
 getEmployeeTimesheet(data) {
   return this.request("getEmployeeTimesheet", data);
+},
+getEmployeeYTD(data) {
+  return this.request("getEmployeeYTD", data);
 }
 };

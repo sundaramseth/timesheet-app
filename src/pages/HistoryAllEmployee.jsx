@@ -37,66 +37,142 @@ function HistoryAllEmployee() {
     }
   };
 
-  const loadHistory = useCallback(async () => {
-    console.log("Loading history for employee:", selectedEmployee);
-    setLoading(true);
-    try {
-      const res = await api.getEmployeeTimesheet({
-        employeeId: selectedEmployee.id,
-      });
-      console.log("API response:", res);
-      if (res?.times) {
-        const history = [];
-        let totalH = 0;
+const loadHistory = useCallback(async () => {
 
-        Object.keys(res.times).forEach((date) => {
-          const dayData = res.times[date];
+  if (!selectedEmployee) return;
 
-          if (dayData?.entries) {
-            dayData.entries.forEach((entry) => {
-              if (entry.in && entry.out) {
-                const start = new Date(`2024-01-01T${entry.in}`);
-                let end = new Date(`2024-01-01T${entry.out}`);
-                if (end < start) end.setDate(end.getDate() + 1);
-                const hours =
-                  (end - start) / (1000 * 60 * 60) -
-                  (dayData.breakMinutes || 0) / 60 / dayData.entries.length;
-                totalH += hours;
-                const earnings = hours * parseFloat(selectedEmployee.rate);
-                history.push({
-                  date,
-                  in: entry.in,
-                  out: entry.out,
-                  hours,
-                  earnings,
-                  notes: dayData?.notes || "",
-                });
-              }
-            });
+  setLoading(true);
+
+  try {
+
+    const res = await api.getEmployeeYTD({
+      employeeId: selectedEmployee.id,
+      startDate,
+      endDate
+    });
+
+    console.log("YTD Response:", res);
+
+    if (!res || !res.history) {
+
+      setHistoryData([]);
+      setFilteredHistory([]);
+
+      setTotalHours(0);
+      setTotalEarnings(0);
+
+      setRegularHours(0);
+      setOvertimeHours(0);
+
+      setRegularPay(0);
+      setOvertimePay(0);
+
+      return;
+    }
+
+    const history = [];
+
+    let totalH = 0;
+    let totalRegularHours = 0;
+    let totalOvertimeHours = 0;
+
+    let totalRegularPay = 0;
+    let totalOvertimePay = 0;
+
+    res.history.forEach(row => {
+
+      const times = row.times || {};
+
+      Object.keys(times).forEach(date => {
+
+        const dayData = times[date];
+
+        if (!dayData?.entries) return;
+
+        dayData.entries.forEach(entry => {
+
+          if (!entry.in || !entry.out) return;
+
+          const start = new Date(`2024-01-01T${entry.in}`);
+
+          let end = new Date(`2024-01-01T${entry.out}`);
+
+          if (end < start) {
+            end.setDate(end.getDate() + 1);
           }
+
+          const hours =
+            (end - start) /
+            (1000 * 60 * 60);
+
+          const earnings =
+            hours *
+            parseFloat(selectedEmployee.rate);
+
+          history.push({
+            date,
+            in: entry.in,
+            out: entry.out,
+            hours,
+            earnings,
+            notes: dayData.notes || ""
+          });
+
+          totalH += hours;
         });
 
-        // Calculate overtime breakdown
-        const rate = parseFloat(selectedEmployee.rate);
-        const overtimeData = calculateOvertimeBreakdown(totalH, rate);
+      });
 
-        console.log("Processed history:", history);
-        setHistoryData(history);
-        setTotalHours(totalH);
-        setTotalEarnings(totalH * rate);
-        setRegularHours(overtimeData.regularHours);
-        setOvertimeHours(overtimeData.overtimeHours);
-        setRegularPay(overtimeData.regularPay);
-        setOvertimePay(overtimeData.overtimePay);
-      } else {
-        console.log("No times data in response");
-      }
-    } catch (err) {
-      console.error("Error loading history:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedEmployee]);
+      totalRegularHours += Number(row.regularHours || 0);
+
+      totalOvertimeHours += Number(row.overtimeHours || 0);
+
+      totalRegularPay += Number(row.regularPay || 0);
+
+      totalOvertimePay += Number(row.overtimePay || 0);
+
+    });
+
+    history.sort(
+      (a, b) =>
+        new Date(a.date) -
+        new Date(b.date)
+    );
+
+    setHistoryData(history);
+
+    setFilteredHistory(history);
+
+    setTotalHours(totalH);
+
+    setRegularHours(totalRegularHours);
+
+    setOvertimeHours(totalOvertimeHours);
+
+    setRegularPay(totalRegularPay);
+
+    setOvertimePay(totalOvertimePay);
+
+    setTotalEarnings(
+      totalRegularPay +
+      totalOvertimePay
+    );
+
+  } catch (err) {
+
+    console.error(err);
+
+  } finally {
+
+    setLoading(false);
+
+  }
+
+}, [
+  selectedEmployee,
+  startDate,
+  endDate
+]);
 
   const filterHistory = useCallback(() => {
     let filtered = historyData;
@@ -114,21 +190,24 @@ function HistoryAllEmployee() {
     loadEmployees();
   }, []);
 
-  useEffect(() => {
-    console.log("Selected employee changed:", selectedEmployee);
-    if (selectedEmployee) {
-      loadHistory();
-    } else {
-      setHistoryData([]);
-      setFilteredHistory([]);
-      setTotalHours(0);
-      setTotalEarnings(0);
-      setRegularHours(0);
-      setOvertimeHours(0);
-      setRegularPay(0);
-      setOvertimePay(0);
-    }
-  }, [selectedEmployee, loadHistory]);
+ useEffect(() => {
+
+  if (
+    selectedEmployee &&
+    startDate &&
+    endDate
+  ) {
+
+    loadHistory();
+
+  }
+
+}, [
+  selectedEmployee,
+  startDate,
+  endDate,
+  loadHistory
+]);
 
   useEffect(() => {
     filterHistory();
@@ -140,116 +219,118 @@ function HistoryAllEmployee() {
   );
   const totalPages = Math.ceil(filteredHistory.length / pageSize);
 
-  const generateYTD = () => {
-    let filtered = historyData;
+const generateYTD = async () => {
 
-    if (startDate) {
-      filtered = filtered.filter((item) => item.date >= startDate);
-    }
+  const res =
+    await api.getEmployeeYTD({
 
-    if (endDate) {
-      filtered = filtered.filter((item) => item.date <= endDate);
-    }
+      employeeId:
+        selectedEmployee.id,
 
-    const totalHours = filtered.reduce((sum, item) => sum + item.hours, 0);
+      startDate,
 
-    const rate = parseFloat(selectedEmployee.rate);
-
-    const overtime = calculateOvertimeBreakdown(totalHours, rate);
-
-    const gross = overtime.regularPay + overtime.overtimePay;
-
-    const ss = gross * 0.062;
-
-    const medicare = gross * 0.0145;
-
-    const deductions = ss + medicare;
-
-    const net = gross - deductions;
-
-    setYtdData({
-      totalHours,
-      regularHours: overtime.regularHours,
-      overtimeHours: overtime.overtimeHours,
-      regularPay: overtime.regularPay,
-      overtimePay: overtime.overtimePay,
-      gross,
-      ss,
-      medicare,
-      deductions,
-      net,
+      endDate
     });
-  };
+
+  if (!res) return;
+
+  const gross =
+    Number(res.grossPay || 0);
+
+  const ss =
+    gross * 0.062;
+
+  const medicare =
+    gross * 0.0145;
+
+  const deductions =
+    ss + medicare;
+
+  const net =
+    gross - deductions;
+
+  setYtdData({
+
+    totalHours:
+      res.totalHours,
+
+    regularHours:
+      res.regularHours,
+
+    overtimeHours:
+      res.overtimeHours,
+
+    regularPay:
+      res.regularPay,
+
+    overtimePay:
+      res.overtimePay,
+
+    gross,
+
+    ss,
+
+    medicare,
+
+    deductions,
+
+    net
+  });
+console.log("YTD DATA:", ytdData);
+};
 
   const previewYTD = async () => {
 
   setYtdLoading(true);  
 
-  let filtered = historyData;
+const totalHours =
+  Number(ytdData?.totalHours || 0);
 
-  if (startDate) {
-    filtered = filtered.filter(
-      item => item.date >= startDate
-    );
-  }
+const regularHours =
+  Number(ytdData?.regularHours || 0);
 
-  if (endDate) {
-    filtered = filtered.filter(
-      item => item.date <= endDate
-    );
-  }
+const overtimeHours =
+  Number(ytdData?.overtimeHours || 0);
 
-  const totalHours = filtered.reduce(
-    (sum, item) => sum + item.hours,
-    0
-  );
+const regularPay =
+  Number(ytdData?.regularPay || 0);
 
-  const rate = parseFloat(selectedEmployee.rate);
+const overtimePay =
+  Number(ytdData?.overtimePay || 0);
+const payload = {
 
-  const overtimeData =
-    calculateOvertimeBreakdown(
-      totalHours,
-      rate
-    );
+  name: selectedEmployee.name,
+  email: selectedEmployee.email,
+  rate: Number(selectedEmployee.rate),
 
-  const payload = {
+  weekStart: startDate,
+  weekEnd: endDate,
 
-    name: selectedEmployee.name,
-    email: selectedEmployee.email,
-    rate: rate,
+  totalHours,
 
-    weekStart: startDate,
-    weekEnd: endDate,
+  regularHours,
 
-    totalHours,
+  overtimeHours,
 
-    regularHours:
-      overtimeData.regularHours,
+  regularPay,
 
-    overtimeHours:
-      overtimeData.overtimeHours,
+  overtimePay,
 
-    regularPay:
-      overtimeData.regularPay,
+  globalNotes:
+    `YTD Report (${startDate} - ${endDate})`,
 
-    overtimePay:
-      overtimeData.overtimePay,
+  filling_status:
+    selectedEmployee.filling_status,
 
-    globalNotes:
-      `YTD Report (${startDate} - ${endDate})`,
+  depend:
+    selectedEmployee.depend,
 
-    filling_status:
-      selectedEmployee.filling_status,
+  applySS: true,
+  applyMedicare: true,
 
-    depend:
-      selectedEmployee.depend,
-
-    applySS: true,
-    applyMedicare: true,
-
-    applyFederalTax: false,
-    federalTaxPercent: 0
-  };
+  applyFederalTax: false,
+  federalTaxPercent: 0
+};
 
   try {
 
@@ -340,7 +421,14 @@ if(result?.url){
 
               <div className="mt-4 ">
                 <button
-                  onClick={generateYTD}
+  onClick={() => {
+
+    loadHistory();
+
+    generateYTD();
+
+  }}
+
                   className="px-4 py-2 bg-green-600 text-white rounded cursor-pointer hover:bg-green-700"
                 >
                   Generate YTD
